@@ -1098,3 +1098,65 @@ Proof.
   - apply H0.
     apply H.
 Qed.
+
+Inductive derivative: term -> Type :=
+| TZeroZero: derivative 0
+| TOneOne: derivative 1
+| TOneZero: derivative 1
+| TLetterLetter: forall (a: A), derivative ($ a)
+| TLetterOne: forall {a: A}, derivative ($ a)
+| TLetterZero: forall {a: A}, derivative ($ a)
+| TPlusLeft: forall {t1 t2: term}, derivative t1 -> derivative (t1 + t2)
+| TPlusRight: forall {t1 t2: term}, derivative t2 -> derivative (t1 + t2)
+| TTimesPre: forall {t1: term} (t2: term), derivative t1 -> derivative (t1 ;; t2)
+| TTimesPost: forall {t1 t2: term}, derivative t2 -> derivative (t1 ;; t2)
+| TStar: forall (t: term), derivative t -> derivative (t *)
+.
+
+Derive NoConfusion for term.
+
+Equations derivative_write {t: term} (d: derivative t): term := {
+  derivative_write TZeroZero := 0;
+  derivative_write TOneOne := 1;
+  derivative_write TOneZero := 0;
+  derivative_write (TLetterLetter a) := $ a;
+  derivative_write TLetterOne := 1;
+  derivative_write TLetterZero := 0;
+  derivative_write (TPlusLeft d) := derivative_write d;
+  derivative_write (TPlusRight d) := derivative_write d;
+  derivative_write (TTimesPre t2 d) := derivative_write d ;; t2;
+  derivative_write (TTimesPost d) := derivative_write d;
+  derivative_write (TStar t d) := derivative_write d ;; t *
+}.
+
+Definition nullable (t: term) : bool.
+Admitted.
+
+Definition initial (t: term): list (derivative t).
+Admitted.
+
+Context `{Finite A}.
+
+Equations derive {t: term} (d1 d2: derivative t) : list A := {
+  derive TZeroZero TZeroZero := finite_enum;
+  derive TOneOne TOneZero := finite_enum;
+  derive TOneZero TOneZero := finite_enum;
+  derive (TLetterLetter a) TLetterOne := a :: nil;
+  derive TLetterOne TLetterZero := finite_enum;
+  derive TLetterZero TLetterZero := finite_enum;
+  derive (TPlusLeft d1) (TPlusLeft d2) := derive d1 d2;
+  derive (TPlusRight d1) (TPlusRight d2) := derive d1 d2;
+  derive (TTimesPre _ d1) (TTimesPre _ d2) := derive d1 d2;
+  derive (TTimesPre t2 d1) (TTimesPost d2) :=
+    if nullable (derivative_write d1)
+    then concat (map (fun d2' => derive d2' d2) (initial t2))
+    else nil;
+  derive (TTimesPost d1) (TTimesPost d2) := derive d1 d2;
+  derive (TStar _ d1) (TStar _ d2) := derive d1 d2;
+  derive _ _ := nil;
+}.
+
+Definition system_antimirov (t: term) : system (derivative t) := {|
+  smat d1 d2 := fold_left plus (map letter (derive d1 d2)) zero;
+  svec d := if nullable (derivative_write d) then one else zero;
+|}.
