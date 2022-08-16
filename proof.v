@@ -301,17 +301,17 @@ Definition compress_system
         ;; svec sys PHere
 |}.
 
-Equations compute_solution
+Equations compute_solution_nat
   {n: nat}
   (sys: system (position n))
   (p: position n)
   : term
 := {
-  @compute_solution (S n) sys (PThere p) :=
-    let smaller_solution := compute_solution (compress_system sys) in
+  @compute_solution_nat (S n) sys (PThere p) :=
+    let smaller_solution := compute_solution_nat (compress_system sys) in
     smaller_solution p;
-  @compute_solution (S n) sys PHere :=
-    let smaller_solution := compute_solution (compress_system sys) in
+  @compute_solution_nat (S n) sys PHere :=
+    let smaller_solution := compute_solution_nat (compress_system sys) in
     (smat sys PHere PHere)* ;;
       (svec sys PHere + (# (smat sys PHere)) ** smaller_solution);
 }.
@@ -391,16 +391,16 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma compute_solution_chomp
+Lemma compute_solution_nat_chomp
   {n: nat}
   (sys: system (position (S n)))
 :
-  # compute_solution sys === compute_solution (compress_system sys)
+  # compute_solution_nat sys === compute_solution_nat (compress_system sys)
 .
 Proof.
   intro.
   unfold vector_chomp.
-  now autorewrite with compute_solution; simpl.
+  now autorewrite with compute_solution_nat; simpl.
 Qed.
 
 Lemma compress_system_mat
@@ -570,32 +570,32 @@ Definition solution_nat
   smat sys <*> sol <+> svec sys <== sol
 .
 
-Lemma compute_solution_solution
+Lemma compute_solution_nat_solution_nat
   {n: nat}
   (sys: system (position n))
 :
-  solution_nat sys (compute_solution sys)
+  solution_nat sys (compute_solution_nat sys)
 .
 Proof.
   unfold solution_nat; intro p.
   dependent induction p.
   - unfold vector_sum, matrix_vector_product.
     autorewrite with inner_product.
-    autorewrite with compute_solution; simpl.
+    autorewrite with compute_solution_nat; simpl.
     rewrite ETimesAssoc.
     rewrite <- EPlusAssoc with (t3 := svec sys PHere).
     rewrite EPlusComm with (t2 := svec sys PHere).
-    rewrite <- ETimesUnitLeft with (t := _ + # _ ** # compute_solution sys).
-    rewrite compute_solution_chomp.
+    rewrite <- ETimesUnitLeft with (t := _ + # _ ** # compute_solution_nat sys).
+    rewrite compute_solution_nat_chomp.
     rewrite <- EDistributeRight.
     rewrite <- EStarLeft.
     apply term_lequiv_refl.
   - unfold vector_sum, matrix_vector_product.
     autorewrite with inner_product.
-    autorewrite with compute_solution; simpl.
+    autorewrite with compute_solution_nat; simpl.
     rewrite ETimesAssoc.
     rewrite EDistributeLeft.
-    rewrite compute_solution_chomp.
+    rewrite compute_solution_nat_chomp.
     rewrite vector_inner_product_scale_left.
     rewrite <- EPlusAssoc with (t1 := _ ;; svec sys PHere).
     rewrite vector_inner_product_distribute_left.
@@ -653,18 +653,18 @@ Proof.
   apply H.
 Qed.
 
-Lemma compute_solution_least
+Lemma compute_solution_nat_least
   {n: nat}
   (sys: system (position n))
   (sol: vector (position n))
 :
   solution_nat sys sol ->
-  compute_solution sys <== sol
+  compute_solution_nat sys <== sol
 .
 Proof.
   intros.
   dependent induction n; intro p; dependent destruction p.
-  - autorewrite with compute_solution; simpl.
+  - autorewrite with compute_solution_nat; simpl.
     rewrite EPlusComm with (t1 := svec sys PHere).
     match goal with
     | |- ?lhs <= ?rhs => fold (term_lequiv lhs rhs)
@@ -672,7 +672,7 @@ Proof.
     rewrite IHn with (sol := # sol).
     + now apply solution_bound.
     + now apply solution_project.
-  - autorewrite with compute_solution; simpl.
+  - autorewrite with compute_solution_nat; simpl.
     eapply term_lequiv_trans.
     apply IHn.
     + apply solution_project.
@@ -706,18 +706,18 @@ Proof.
       * apply H.
 Qed.
 
-Lemma compute_solution_least_solution
+Lemma compute_solution_nat_least_solution
   {n: nat}
   (sys: system (position n))
 :
-  least_solution sys (compute_solution sys)
+  least_solution sys (compute_solution_nat sys)
 .
 Proof.
   split.
   - apply solution_iff_solution_nat.
-    apply compute_solution_solution.
+    apply compute_solution_nat_solution_nat.
   - setoid_rewrite solution_iff_solution_nat.
-    apply compute_solution_least.
+    apply compute_solution_nat_least.
 Qed.
 
 Require Import Coq.Lists.List.
@@ -870,11 +870,231 @@ Qed.
 Lemma list_index_lookup
   {X: Type}
   `{Finite X}
-  (p: position (length (@finite_enum X _)))
+  (p: position (length finite_enum))
 :
   list_index (list_lookup p) = p
 .
 Proof.
   apply list_lookup_injective.
   now rewrite list_lookup_index.
+Qed.
+
+Definition vector_index
+  {X: Type}
+  `{Finite X}
+  (v: vector X)
+  (p: position (length finite_enum))
+:
+  term
+:=
+  v (list_lookup p)
+.
+
+Definition vector_lookup
+  {X: Type}
+  `{Finite X}
+  (v: vector (position (length finite_enum)))
+  (x: X)
+:
+  term
+:=
+  v (list_index x)
+.
+
+Definition matrix_index
+  {X: Type}
+  `{Finite X}
+  (m: matrix X)
+  (p p': position (length finite_enum))
+:
+  term
+:=
+  m (list_lookup p) (list_lookup p')
+.
+
+Definition matrix_lookup
+  {X: Type}
+  `{Finite X}
+  (m: matrix (position (length finite_enum)))
+  (x x': X)
+:
+  term
+:=
+  m (list_index x) (list_index x')
+.
+
+Definition system_index
+  {X: Type}
+  `{Finite X}
+  (sys: system X)
+:
+  system (position (length finite_enum))
+:= {|
+  smat := matrix_index (smat sys);
+  svec := vector_index (svec sys);
+|}.
+
+Definition system_lookup
+  {X: Type}
+  `{Finite X}
+  (sys: system (position (length finite_enum)))
+:
+  system X
+:= {|
+  smat := matrix_lookup (smat sys);
+  svec := vector_lookup (svec sys);
+|}.
+
+Lemma solution_finite_to_nat
+  {X: Type}
+  `{Finite X}
+  (sys: system X)
+  (v: vector X)
+:
+  solution sys v ->
+  solution (system_index sys) (vector_index v)
+.
+Proof.
+  split; intros; simpl; apply H0.
+Qed.
+
+Lemma solution_nat_to_finite
+  {X: Type}
+  `{Finite X}
+  (sys: system (position (length finite_enum)))
+  (v: vector (position (length (finite_enum))))
+:
+  solution sys v ->
+  solution (system_lookup sys) (vector_lookup v)
+.
+Proof.
+  split; intros; simpl; apply H0.
+Qed.
+
+Definition compute_solution
+  {X: Type}
+  `{Finite X}
+  (sys: system X)
+:
+  vector X
+:=
+  vector_lookup (compute_solution_nat (system_index sys))
+.
+
+Lemma compute_solution_solution
+  {X: Type}
+  `{Finite X}
+  (sys: system X)
+:
+  solution sys (compute_solution sys)
+.
+Proof.
+  split; intros.
+  - replace (smat sys q q') with (smat (system_index sys) (list_index q) (list_index q')).
+    + apply compute_solution_nat_least_solution.
+    + simpl; unfold matrix_index.
+      now repeat rewrite list_lookup_index.
+  - replace (svec sys q) with (svec (system_index sys) (list_index q)).
+    + apply compute_solution_nat_least_solution.
+    + simpl; unfold vector_index.
+      now rewrite list_lookup_index.
+Qed.
+
+Lemma vector_lequiv_adjunction
+  {X: Type}
+  `{Finite X}
+  (v1: vector (position (length finite_enum)))
+  (v2: vector X)
+:
+  v1 <== vector_index v2 <-> vector_lookup v1 <== v2
+.
+Proof.
+  split; intros.
+  - intro x.
+    unfold vector_lookup.
+    rewrite <- list_lookup_index at 2.
+    rewrite <- list_lookup_index at 3.
+    apply H0.
+  - intro p.
+    unfold vector_index.
+    rewrite <- list_index_lookup at 1.
+    apply H0.
+Qed.
+
+Lemma compute_solution_least
+  {X: Type}
+  `{Finite X}
+  (sys: system X)
+:
+  forall sol,
+    solution sys sol ->
+    compute_solution sys <== sol
+.
+Proof.
+  intros.
+  unfold compute_solution.
+  apply vector_lequiv_adjunction.
+  apply compute_solution_nat_least_solution.
+  now apply solution_finite_to_nat.
+Qed.
+
+Lemma compute_solution_least_solution
+  {X: Type}
+  `{Finite X}
+  (sys: system X)
+:
+  least_solution sys (compute_solution sys)
+.
+Proof.
+  split.
+  - apply compute_solution_solution.
+  - apply compute_solution_least.
+Qed.
+
+Lemma term_lequiv_squeeze
+  (t1 t2: term)
+:
+  t1 <= t2 ->
+  t2 <= t1 ->
+  t1 == t2
+.
+Proof.
+  intros.
+  rewrite <- H.
+  rewrite <- H0 at 1.
+  rewrite EPlusComm.
+  reflexivity.
+Qed.
+
+Lemma vector_lequiv_squeeze
+  {X: Type}
+  (v1 v2: vector X)
+:
+  v1 <== v2 ->
+  v2 <== v1 ->
+  v1 === v2
+.
+Proof.
+  intros; intro x.
+  apply term_lequiv_squeeze.
+  - apply H.
+  - apply H0.
+Qed.
+
+Lemma least_solution_unique
+  {X: Type}
+  (sys: system X)
+  (v1 v2: vector X)
+:
+  least_solution sys v1 ->
+  least_solution sys v2 ->
+  v1 === v2
+.
+Proof.
+  intros.
+  apply vector_lequiv_squeeze.
+  - apply H.
+    apply H0.
+  - apply H0.
+    apply H.
 Qed.
