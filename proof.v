@@ -1100,19 +1100,12 @@ Proof.
 Qed.
 
 Inductive derivative: term -> Type :=
-| TZeroZero:
-    derivative 0
 | TOneOne:
-    derivative 1
-| TOneZero:
     derivative 1
 | TLetterLetter:
     forall (a: A),
     derivative ($ a)
 | TLetterOne:
-    forall {a: A},
-    derivative ($ a)
-| TLetterZero:
     forall {a: A},
     derivative ($ a)
 | TPlusLeft:
@@ -1131,26 +1124,27 @@ Inductive derivative: term -> Type :=
     forall (t1: term) {t2: term},
     derivative t2 ->
     derivative (t1 ;; t2)
-| TStar:
+| TStarInner:
     forall (t: term),
     derivative t ->
+    derivative (t *)
+| TStarOne:
+    forall (t: term),
     derivative (t *)
 .
 
 Derive NoConfusion for term.
 
 Equations derivative_write {t: term} (d: derivative t): term := {
-  derivative_write TZeroZero := 0;
   derivative_write TOneOne := 1;
-  derivative_write TOneZero := 0;
   derivative_write (TLetterLetter a) := $ a;
   derivative_write TLetterOne := 1;
-  derivative_write TLetterZero := 0;
   derivative_write (TPlusLeft _ d) := derivative_write d;
   derivative_write (TPlusRight _ d) := derivative_write d;
   derivative_write (TTimesPre t2 d) := derivative_write d ;; t2;
   derivative_write (TTimesPost _ d) := derivative_write d;
-  derivative_write (TStar t d) := derivative_write d ;; t *
+  derivative_write (TStarInner t d) := derivative_write d ;; t *;
+  derivative_write (TStarOne t) := 1;
 }.
 
 Inductive initial:
@@ -1158,8 +1152,6 @@ Inductive initial:
   derivative t ->
   Prop
 :=
-| InitialZeroZero:
-    initial TZeroZero
 | InitialOneOne:
     initial TOneOne
 | InitialLetterLetter:
@@ -1177,20 +1169,23 @@ Inductive initial:
     forall (t1 t2: term) (d1: derivative t1),
     initial d1 ->
     initial (TTimesPre t2 d1)
-| InitialStar:
+| InitialStarStep:
     forall (t: term) (d: derivative t),
     initial d ->
-    initial (TStar t d)
+    initial (TStarInner t d)
+| InitialStarOne:
+    forall (t: term),
+    initial (TStarOne t)
 .
 
 Equations initial_b (t: term) (d: derivative t): bool := {
-  initial_b 0 TZeroZero := true;
   initial_b 1 TOneOne := true;
   initial_b ($ a) (TLetterLetter a) := true;
   initial_b (t1 + t2) (TPlusLeft _ d1) := initial_b t1 d1;
   initial_b (t1 + t2) (TPlusRight _ d2) := initial_b t2 d2;
   initial_b (t1 ;; t2) (TTimesPre _ d1) := initial_b t1 d1;
-  initial_b (t*) (TStar _ d) := initial_b t d;
+  initial_b (t*) (TStarInner _ d) := initial_b t d;
+  initial_b (t*) (TStarOne _) := true;
   initial_b _ _ := false;
 }.
 
@@ -1216,14 +1211,14 @@ Proof.
 Qed.
 
 Equations initial_l (t: term): list (derivative t) := {
-  initial_l 0 := TZeroZero :: nil;
+  initial_l 0 := nil;
   initial_l 1 := TOneOne :: nil;
   initial_l ($ a) := TLetterLetter a :: nil;
   initial_l (t1 + t2) :=
     map (TPlusLeft _) (initial_l t1) ++
     map (TPlusRight _) (initial_l t2);
   initial_l (t1 ;; t2) := map (TTimesPre t2) (initial_l t1);
-  initial_l (t*) := map (TStar t) (initial_l t);
+  initial_l (t*) := TStarOne t :: map (TStarInner t) (initial_l t);
 }.
 
 Search existT.
@@ -1280,12 +1275,15 @@ Proof.
     split; intros.
     + dependent destruction H.
     + now destruct H as [d' [? ?]].
-  - rewrite in_map_iff.
+  - simpl.
+    rewrite in_map_iff.
     split; intros.
     + dependent destruction H.
+      right.
       eexists.
       intuition.
-    + destruct H as [d' [? ?]].
+    + destruct H as [? | [d' [? ?]]];
+      try discriminate.
       inversion H.
       constructor.
       clean_exists.
@@ -1320,11 +1318,24 @@ Inductive nullable:
     forall (t1 t2: term) (d2: derivative t2),
     nullable d2 ->
     nullable (TTimesPost t1 d2)
-| NullableStar:
+| NullableStarInner:
     forall (t: term) (d: derivative t),
     nullable d ->
-    nullable (TStar t d)
+    nullable (TStarInner t d)
+| NullableStarOne:
+    forall (t: term),
+    nullable (TStarOne t)
 .
+
+Equations conj (l: list bool) : bool := {
+  conj nil := true;
+  conj (b :: l) := b && (conj l);
+}.
+
+Equations disj (l: list bool) : bool := {
+  disj nil := false;
+  disj (b :: l) := b || (disj l);
+}.
 
 Equations nullable_b (t: term) (d: derivative t) : bool := {
   nullable_b 1 TOneOne := true;
@@ -1332,24 +1343,23 @@ Equations nullable_b (t: term) (d: derivative t) : bool := {
   nullable_b (t1 + t2) (TPlusLeft _ d) := nullable_b _ d;
   nullable_b (t1 + t2) (TPlusRight _ d) := nullable_b _ d;
   nullable_b (t1 ;; t2) (TTimesPre _ d) :=
-    nullable_b _ d &&
-    fold_right orb false (map (nullable_b _) (initial_l t2));
+    nullable_b _ d && disj (map (nullable_b _) (initial_l t2));
   nullable_b (t1 ;; t2) (TTimesPost _ d) :=
     nullable_b _ d;
-  nullable_b (t*) (TStar _ d) :=
+  nullable_b (t*) (TStarInner _ d) :=
     nullable_b _ d;
+  nullable_b (t*) (TStarOne _) := true;
   nullable_b _ _ := false;
 }.
 
 Arguments nullable_b {t}.
 
-Lemma fold_right_andb (l: list bool):
-  fold_right orb false l = true <->
-  In true l
+Lemma disj_true (l: list bool):
+  disj l = true <-> In true l
 .
 Proof.
   split; intros.
-  - induction l; simpl in H.
+  - induction l; autorewrite with disj in H.
     + discriminate.
     + destruct a.
       * now left.
@@ -1358,7 +1368,7 @@ Proof.
   - induction l.
     + contradiction.
     + destruct a; simpl.
-      * reflexivity.
+      * now autorewrite with disj.
       * apply IHl.
         now destruct H.
 Qed.
@@ -1386,14 +1396,14 @@ Proof.
   - dependent destruction H.
     apply andb_true_intro; split.
     + now apply IHt1.
-    + apply fold_right_andb.
+    + apply disj_true.
       apply in_map_iff.
       exists d2.
       split.
       * now apply IHt2.
       * now apply initial_list.
   - apply andb_prop in H; destruct H.
-    apply fold_right_andb in H0.
+    apply disj_true in H0.
     apply in_map_iff in H0.
     destruct H0 as [d' [? ?]].
     eapply NullableTimesPre.
@@ -1414,30 +1424,74 @@ Equations nullable_b' (t: term) : bool := {
 
 Arguments nullable_b {t}.
 
+Equations sum (l: list term): term := {
+  sum nil := 0;
+  sum (t :: l) := t + sum l;
+}.
+
+Lemma sum_split (l1 l2: list term):
+  sum (l1 ++ l2) == sum l1 + sum l2
+.
+Proof.
+  revert l2; induction l1; intros.
+  - autorewrite with sum.
+    now rewrite EPlusComm, EPlusUnit, app_nil_l.
+  - rewrite <- app_comm_cons.
+    autorewrite with sum.
+    rewrite <- EPlusAssoc.
+    now rewrite IHl1.
+Qed.
+
+Lemma sum_distribute_right (l: list term) (t: term):
+  sum (map (fun x => x ;; t) l) == sum l ;; t
+.
+Proof.
+  induction l; simpl; autorewrite with sum.
+  - now rewrite ETimesZeroRight.
+  - rewrite IHl.
+    now rewrite EDistributeRight.
+Qed.
+
 Lemma initial_reconstruct (t: term):
-  t == fold_left plus (map derivative_write (initial_l t)) 0
+  t == sum (map derivative_write (initial_l t))
 .
 Proof.
   induction t.
+  - now vm_compute.
   - vm_compute.
-    now rewrite EPlusIdemp.
+    now rewrite EPlusUnit.
   - vm_compute.
-    now rewrite EPlusComm, EPlusUnit.
-  - vm_compute.
-    now rewrite EPlusComm, EPlusUnit.
+    now rewrite EPlusUnit.
   - autorewrite with initial_l.
     rewrite map_app.
-    rewrite fold_left_app.
-    replace (fold_left plus (map derivative_write (map (TPlusRight _) (initial_l t2)))
-  (fold_left plus (map derivative_write (map (TPlusLeft _) (initial_l t1))) 0))
-  with (fold_left plus (map derivative_write (map (TPlusRight t1) (initial_l t2))) 0 +
-  fold_left plus (map derivative_write (map (TPlusLeft t2) (initial_l t1))) 0).
+    rewrite sum_split.
     repeat rewrite map_map.
-    rewrite map_ext with (g := derivative_write) by easy.
-    rewrite map_ext with (f := (fun x : derivative t1 => derivative_write (TPlusLeft _ x))) (g := derivative_write) by easy.
-    rewrite <- IHt1, <- IHt2.
+    rewrite map_ext
+      with (f := (fun x => derivative_write (TPlusLeft t2 x)))
+           (g := derivative_write)
+      by easy.
+    rewrite map_ext
+      with (f := (fun x => derivative_write (TPlusRight t1 x)))
+           (g := derivative_write)
+      by easy.
+    now rewrite <- IHt1, <- IHt2.
+  - autorewrite with initial_l.
+    rewrite map_map.
+    rewrite map_ext with (g := (fun x => derivative_write x ;; t2)) by easy.
+    rewrite <- map_map with (g := fun x => x ;; t2).
+    rewrite sum_distribute_right.
+    now rewrite <- IHt1.
+  - autorewrite with initial_l.
+    simpl; autorewrite with sum.
+    autorewrite with derivative_write.
+    rewrite map_map.
+    rewrite map_ext with (g := (fun x => derivative_write x ;; t*)) by easy.
+    rewrite <- map_map with (g := fun x => x ;; t*).
+    rewrite sum_distribute_right.
+    rewrite <- IHt.
+    rewrite EStarLeft at 1.
     now rewrite EPlusComm.
-Admitted.
+Qed.
 
 Context `{Finite A}.
 
@@ -1447,12 +1501,7 @@ Inductive derive (a: A):
   derivative t ->
   Prop
 :=
-| DeriveZeroZero: derive a TZeroZero TZeroZero
-| DeriveOneOne: derive a TOneOne TOneZero
-| DeriveOneZero: derive a TOneZero TOneZero
 | DeriveLetterLetter: derive a (TLetterLetter a) TLetterOne
-| DeriveLetterOne: derive a (@TLetterOne a) TLetterZero
-| DeriveLetterZero: derive a (@TLetterZero a) TLetterZero
 | DerivePlusLeft:
     forall (t1 t2: term) (d11 d12: derivative t1),
     derive a d11 d12 ->
@@ -1468,38 +1517,110 @@ Inductive derive (a: A):
 | DeriveTimesJump:
     forall (t1 t2: term) (d1: derivative t1) (i d2: derivative t2),
     nullable d1 ->
-    initial d2 ->
+    initial i ->
     derive a i d2 ->
     derive a (TTimesPre t2 d1) (TTimesPost t1 d2)
 | DeriveTimesPost:
     forall (t1 t2: term) (d21 d22: derivative t2),
     derive a d21 d22 ->
     derive a (TTimesPost t1 d21) (TTimesPost t1 d22)
-| DeriveStar:
+| DeriveStarInnerStep:
     forall (t: term) (d1 d2: derivative t),
     derive a d1 d2 ->
-    derive a (TStar t d1) (TStar t d2)
+    derive a (TStarInner t d1) (TStarInner t d2)
+| DeriveStarInnerJump:
+    forall (t: term) (d1 i d2: derivative t),
+    nullable d1 ->
+    initial i ->
+    derive a i d2 ->
+    derive a (TStarInner t d1) (TStarInner t d2)
 .
 
-Equations derive_b {t: term} (d1 d2: derivative t) (a: A): bool := {
-  derive_b TZeroZero TZeroZero _ := true;
-  derive_b TOneOne TOneZero _ := true;
-  derive_b TOneZero TOneZero _ := true;
-  derive_b (TLetterLetter a') TLetterOne a :=
+Equations derive_b (a: A) {t: term} (d1 d2: derivative t): bool := {
+  derive_b a (TLetterLetter a') TLetterOne :=
     if finite_dec a a' then true else false;
-  derive_b TLetterOne TLetterZero _ := true;
-  derive_b TLetterZero TLetterZero _ := true;
-  derive_b (TPlusLeft _ d1) (TPlusLeft _ d2) a := derive_b d1 d2 a;
-  derive_b (TPlusRight _ d1) (TPlusRight _ d2) a := derive_b d1 d2 a;
-  derive_b (TTimesPre _ d1) (TTimesPre _ d2) a := derive_b d1 d2 a;
-  derive_b (TTimesPre t2 d1) (TTimesPost _ d2) a :=
-    if nullable_b d1
-    then fold_left andb (map (fun d2' => derive_b d2' d2 a) (initial_l t2)) false
-    else false;
-  derive_b (TTimesPost _ d1) (TTimesPost _ d2) a := derive_b d1 d2 a;
-  derive_b (TStar _ d1) (TStar _ d2) a := derive_b d1 d2 a;
+  derive_b a (TPlusLeft _ d1) (TPlusLeft _ d2) := derive_b a d1 d2;
+  derive_b a (TPlusRight _ d1) (TPlusRight _ d2) := derive_b a d1 d2;
+  derive_b a (TTimesPre _ d1) (TTimesPre _ d2) := derive_b a d1 d2;
+  derive_b a (TTimesPre t2 d1) (TTimesPost _ d2) :=
+    nullable_b d1 && disj (map (fun i => derive_b a i d2) (initial_l t2));
+  derive_b a (TTimesPost _ d1) (TTimesPost _ d2) := derive_b a d1 d2;
+  derive_b a (TStarInner _ d1) (TStarInner _ d2) :=
+    derive_b a d1 d2 || (
+      nullable_b d1 &&
+      disj (map (fun i => derive_b a i d2) (initial_l t))
+    );
   derive_b _ _ _ := false;
 }.
+
+Lemma derive_dec (t: term) (d1 d2: derivative t) (a: A):
+  derive a d1 d2 <-> derive_b a d1 d2 = true
+.
+Proof.
+  dependent induction t;
+  dependent destruction d1;
+  dependent destruction d2;
+  autorewrite with derive_b;
+  match goal with
+  | |- _ <-> true = true =>
+    split; intros; [reflexivity | constructor]
+  | |- _ <-> false = true =>
+    split; intros; [now inversion H0 | discriminate]
+  | |- _ <-> derive_b _ _ _ = true =>
+    split; intros; [
+      dependent destruction H0; intuition |
+      constructor ];
+    intuition
+  | _ => idtac
+  end.
+  - destruct (finite_dec a0 a); split; intros.
+    + reflexivity.
+    + subst; constructor.
+    + now inversion H0.
+    + discriminate.
+  - split; intros.
+    + dependent destruction H0.
+      apply andb_true_intro; split.
+      * now apply nullable_dec.
+      * apply disj_true.
+        apply in_map_iff.
+        eexists.
+        intuition.
+        now apply initial_list.
+    + apply andb_prop in H0; destruct H0.
+      apply disj_true in H1.
+      apply in_map_iff in H1.
+      destruct H1 as [i [? ?]].
+      eapply DeriveTimesJump.
+      * now apply nullable_dec.
+      * apply initial_list, H2.
+      * now apply IHt2.
+  - split; intros.
+    + apply Bool.orb_true_intro.
+      dependent destruction H0.
+      * left.
+        now apply IHt.
+      * right.
+        apply andb_true_intro; split.
+        -- now apply nullable_dec.
+        -- apply disj_true.
+           apply in_map_iff.
+           exists i.
+           intuition.
+           now apply initial_list.
+    + apply Bool.orb_true_elim in H0.
+      destruct H0.
+      * apply DeriveStarInnerStep.
+        now apply IHt.
+      * apply andb_prop in e; destruct e.
+        apply disj_true in H1.
+        apply in_map_iff in H1.
+        destruct H1 as [i [? ?]].
+        eapply DeriveStarInnerJump.
+        -- now apply nullable_dec.
+        -- apply initial_list, H2.
+        -- now apply IHt.
+Qed.
 
 (*
 Definition system_antimirov (t: term) : system (derivative t) := {|
