@@ -1663,8 +1663,202 @@ Record automaton_homomorphism
     aut_accept aut2 (automaton_homomorphism_f q1) = true;
 }.
 
-Instance: forall t, Finite (derivative t).
-Admitted.
+Equations derive_list (t: term) : list (derivative t) := {
+  derive_list 0 := nil;
+  derive_list 1 := TOneOne :: nil;
+  derive_list ($ a) := TLetterLetter a :: TLetterOne :: nil;
+  derive_list (t1 + t2) :=
+    map (TPlusLeft _) (derive_list t1) ++
+    map (TPlusRight _) (derive_list t2);
+  derive_list (t1 ;; t2) :=
+    map (TTimesPre _) (derive_list t1) ++
+    map (TTimesPost _) (derive_list t2);
+  derive_list (t*) :=
+    TStarOne _ :: map (TStarInner _) (derive_list t);
+}.
+
+Equations derive_eqb {t: term} (d1 d2: derivative t) : bool := {
+  derive_eqb TOneOne TOneOne := true;
+  derive_eqb (TLetterLetter _) (TLetterLetter _) := true;
+  derive_eqb TLetterOne TLetterOne := true;
+  derive_eqb (TPlusLeft _ d1) (TPlusLeft _ d2) := derive_eqb d1 d2;
+  derive_eqb (TPlusRight _ d1) (TPlusRight _ d2) := derive_eqb d1 d2;
+  derive_eqb (TTimesPre _ d1) (TTimesPre _ d2) := derive_eqb d1 d2;
+  derive_eqb (TTimesPost _ d1) (TTimesPost _ d2) := derive_eqb d1 d2;
+  derive_eqb (TStarOne _) (TStarOne _) := true;
+  derive_eqb (TStarInner _ d1) (TStarInner _ d2) := derive_eqb d1 d2;
+  derive_eqb _ _ := false;
+}.
+
+Lemma derive_eqb_correct (t: term) (d1 d2: derivative t):
+  derive_eqb d1 d2 = true <-> d1 = d2
+.
+Proof.
+  dependent induction t;
+  dependent destruction d1;
+  dependent destruction d2;
+  autorewrite with derive_eqb;
+  try easy.
+  - rewrite IHt1.
+    split; intros.
+    + now subst.
+    + apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+  - rewrite IHt2.
+    split; intros.
+    + now subst.
+    + apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+  - rewrite IHt1.
+    split; intros.
+    + now subst.
+    + apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+  - rewrite IHt2.
+    split; intros.
+    + now subst.
+    + apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+  - rewrite IHt.
+    split; intros.
+    + now subst.
+    + apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+Qed.
+
+(* From Leapfrog *)
+Lemma NoDup_app :
+  forall A (l l': list A),
+    NoDup l ->
+    NoDup l' ->
+    (forall x, In x l -> ~ In x l') ->
+    (forall x, In x l' -> ~ In x l) ->
+    NoDup (l ++ l').
+Proof.
+  induction l; destruct l'; simpl; autorewrite with list; auto.
+  intros.
+  constructor.
+  + intro.
+    inversion H0; subst.
+    apply in_app_or in H4.
+    destruct H4; auto.
+    eapply H3; eauto with datatypes.
+  + eapply IHl; eauto with datatypes.
+    * inversion H0; auto.
+    * intuition eauto with datatypes.
+Qed.
+
+(* From Leapfrog *)
+Lemma NoDup_map:
+  forall A B (f: A -> B) l,
+    (forall x y, f x = f y -> x = y) ->
+    NoDup l ->
+    NoDup (map f l).
+Proof.
+  intros.
+  induction l; simpl; constructor.
+  - intro Hin.
+    apply in_map_iff in Hin.
+    destruct Hin as [x [Heq Hin]].
+    apply H0 in Heq.
+    subst.
+    inversion H1.
+    congruence.
+  - inversion H1.
+    eauto.
+Qed.
+
+Program Instance: forall t, Finite (derivative t).
+Next Obligation.
+  apply derive_list.
+Defined.
+Next Obligation.
+  destruct (derive_eqb x1 x2) eqn:?.
+  - left; now apply derive_eqb_correct.
+  - right.
+    contradict Heqb.
+    apply Bool.not_false_iff_true.
+    now apply derive_eqb_correct.
+Qed.
+Next Obligation.
+  unfold Finite_instance_0_obligation_1.
+  dependent induction x;
+  autorewrite with derive_list.
+  - now left.
+  - now left.
+  - right; now left.
+  - apply in_app_iff; left.
+    apply in_map_iff; now exists x.
+  - apply in_app_iff; right.
+    apply in_map_iff; now exists x.
+  - apply in_app_iff; left.
+    apply in_map_iff; now exists x.
+  - apply in_app_iff; right.
+    apply in_map_iff; now exists x.
+  - right.
+    apply in_map_iff; now exists x.
+  - now left.
+Qed.
+Next Obligation.
+  unfold Finite_instance_0_obligation_1.
+  dependent induction t;
+  autorewrite with derive_list.
+  - constructor.
+  - constructor; auto.
+    constructor.
+  - constructor.
+    + intro.
+      destruct H0; auto.
+      discriminate.
+    + constructor; auto.
+      constructor.
+  - apply NoDup_app.
+    + apply NoDup_map; auto; intros.
+      apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+    + apply NoDup_map; auto; intros.
+      apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+    + intros; intro.
+      apply in_map_iff in H0, H1.
+      destruct H0 as [d1 [? ?]].
+      destruct H1 as [d2 [? ?]].
+      subst.
+      discriminate.
+    + intros; intro.
+      apply in_map_iff in H0, H1.
+      destruct H0 as [d1 [? ?]].
+      destruct H1 as [d2 [? ?]].
+      subst.
+      discriminate.
+  - apply NoDup_app.
+    + apply NoDup_map; auto; intros.
+      apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+    + apply NoDup_map; auto; intros.
+      apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+    + intros; intro.
+      apply in_map_iff in H0, H1.
+      destruct H0 as [d1 [? ?]].
+      destruct H1 as [d2 [? ?]].
+      subst.
+      discriminate.
+    + intros; intro.
+      apply in_map_iff in H0, H1.
+      destruct H0 as [d1 [? ?]].
+      destruct H1 as [d2 [? ?]].
+      subst.
+      discriminate.
+  - constructor.
+    + intro.
+      apply in_map_iff in H0.
+      destruct H0 as [d [? ?]].
+      discriminate.
+    + apply NoDup_map; auto; intros.
+      apply Eqdep.EqdepTheory.inj_pair2.
+      now inversion H0.
+Qed.
 
 Definition automaton_antimirov (t: term) : automaton (derivative t) := {|
   aut_transitions a d1 d2 := derive_b a d1 d2;
@@ -2210,29 +2404,101 @@ Proof.
   apply term_homomorphism_roll.
 Qed.
 
-Lemma term_roundtrip_unit_left (t: term):
-  term_roundtrip t <= term_roundtrip (1 ;; t)
-.
-Proof.
-Admitted.
+Equations translate_unit_right
+  {t: term}
+  (s: vector (derivative t))
+  (d: derivative (t ;; 1))
+:
+  term
+:= {
+  translate_unit_right s (TTimesPre _ d) := s d;
+  translate_unit_right s (TTimesPost _ TOneOne) := 1;
+}.
 
 Lemma term_roundtrip_unit_right (t: term):
   term_roundtrip (t ;; 1) <= term_roundtrip t
 .
 Proof.
-Admitted.
+  unfold term_roundtrip.
+  apply sum_lequiv_all; intros.
+  apply in_map_iff in H0.
+  destruct H0 as [d [? ?]]; subst.
+  dependent destruction d.
+  - apply term_lequiv_trans with (t2 := antimirov_solution t d).
+    + clear H1.
+      replace (antimirov_solution t d)
+        with (translate_unit_right (antimirov_solution t) (TTimesPre _ d))
+        by reflexivity.
+      apply compute_automaton_solution_least_solution.
+      split; intros.
+      * simpl in H0.
+        apply derive_dec in H0.
+        dependent destruction H0.
+        -- autorewrite with translate_unit_right.
+           apply compute_automaton_solution_least_solution; auto.
+           simpl; now apply derive_dec.
+        -- dependent destruction H2.
+        -- dependent destruction H0.
+      * simpl in H0.
+        apply nullable_dec in H0.
+        dependent destruction H0.
+        -- autorewrite with translate_unit_right.
+           apply compute_automaton_solution_least_solution; auto.
+           simpl; now apply nullable_dec.
+        -- dependent destruction d2.
+           autorewrite with translate_unit_right.
+           apply term_lequiv_refl.
+    + apply sum_lequiv_member.
+      apply in_map_iff.
+      exists d; split; auto.
+      apply initial_list in H1.
+      apply initial_list.
+      now dependent destruction H1.
+  - apply initial_list in H1.
+    dependent destruction H1.
+Qed.
+
+Program Definition term_homomorphism_inject_left
+  (t1 t2: term)
+:
+  term_homomorphism t1 (t1 + t2)
+:= {|
+  term_homomorphism_automaton_homomorphism := {|
+    automaton_homomorphism_f d := TPlusLeft _ d;
+  |};
+|}.
+Next Obligation.
+  now constructor.
+Qed.
 
 Lemma term_roundtrip_sum_split_left (t1 t2: term):
   term_roundtrip t1 <= term_roundtrip (t1 + t2)
 .
 Proof.
-Admitted.
+  apply term_roundtrip_homomorphism.
+  apply term_homomorphism_inject_left.
+Qed.
+
+Program Definition term_homomorphism_inject_right
+  (t1 t2: term)
+:
+  term_homomorphism t2 (t1 + t2)
+:= {|
+  term_homomorphism_automaton_homomorphism := {|
+    automaton_homomorphism_f d := TPlusRight _ d;
+  |};
+|}.
+Next Obligation.
+  now constructor.
+Qed.
 
 Lemma term_roundtrip_sum_split_right (t1 t2: term):
   term_roundtrip t2 <= term_roundtrip (t1 + t2)
 .
 Proof.
-Admitted.
+  apply term_roundtrip_homomorphism.
+  apply term_homomorphism_inject_right.
+Qed.
 
 Equations term_homomorphism_distribute_left_f
   {t1 t2 t3: term}
@@ -2308,6 +2574,130 @@ Proof.
   apply term_homomorphism_distribute_left.
 Qed.
 
+Definition automaton_perturb
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (s: vector Q)
+  (q: Q)
+:
+  term
+:=
+  (if aut_accept aut q then 1 else 0) +
+  sum (map (fun q' =>
+      sum (map (fun a =>
+          if aut_transitions aut a q q'
+          then $a ;; s q' else 0
+      ) finite_enum)
+  ) finite_enum)
+.
+
+Lemma automaton_perturb_mono
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (s1 s2: vector Q)
+:
+  s1 <== s2 ->
+  automaton_perturb aut s1 <== automaton_perturb aut s2
+.
+Proof.
+  intros; intro q.
+  unfold automaton_perturb.
+  apply term_lequiv_split.
+  - apply term_lequiv_split_left.
+    apply term_lequiv_refl.
+  - apply term_lequiv_split_right.
+    apply sum_lequiv_all; intros.
+    apply in_map_iff in H2.
+    destruct H2 as [q' [? ?]]; subst.
+    eapply term_lequiv_trans; swap 1 2.
+    + eapply sum_lequiv_member.
+      apply in_map_iff.
+      exists q'.
+      split; auto.
+    + apply sum_lequiv_all; intros.
+      apply in_map_iff in H2.
+      destruct H2 as [a [? ?]]; subst.
+      destruct (aut_transitions aut a q q') eqn:?.
+      * eapply term_lequiv_trans; swap 1 2.
+        -- apply sum_lequiv_member.
+           apply in_map_iff.
+           exists a.
+           split; auto.
+        -- rewrite Heqb.
+           apply times_mor_mono.
+           ++ apply term_lequiv_refl.
+           ++ apply H1.
+      * apply term_lequiv_zero.
+Qed.
+
+Lemma automaton_solution_perturb
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (sol: vector Q)
+:
+  automaton_solution aut sol <->
+  automaton_perturb aut sol <== sol
+.
+Proof.
+  split; intros.
+  - intro q.
+    unfold automaton_perturb.
+    apply term_lequiv_split.
+    + destruct (aut_accept aut q) eqn:?.
+      * now apply H1.
+      * apply term_lequiv_zero.
+    + apply sum_lequiv_all; intros.
+      apply in_map_iff in H2.
+      destruct H2 as [q' [? ?]]; subst.
+      apply sum_lequiv_all; intros.
+      apply in_map_iff in H2.
+      destruct H2 as [a [? ?]]; subst.
+      destruct (aut_transitions aut a q q') eqn:?.
+      * now apply H1.
+      * apply term_lequiv_zero.
+  - split; intros.
+    + apply term_lequiv_trans with (t2 := automaton_perturb aut sol q1).
+      * unfold automaton_perturb.
+        apply term_lequiv_split_right.
+        eapply term_lequiv_trans; swap 1 2.
+        -- apply sum_lequiv_member.
+           apply in_map_iff.
+           eexists; split; auto.
+           apply finite_cover.
+        -- apply sum_lequiv_member.
+           apply in_map_iff.
+           exists a.
+           rewrite H2.
+           split; auto.
+           apply finite_cover.
+      * apply H1.
+    + eapply term_lequiv_trans with (t2 := automaton_perturb aut sol q0).
+      * unfold automaton_perturb.
+        apply term_lequiv_split_left.
+        rewrite H2.
+        apply term_lequiv_refl.
+      * apply H1.
+Qed.
+
+Lemma automaton_solution_iterate
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (sol: vector Q)
+:
+  automaton_solution aut sol ->
+  automaton_solution aut (automaton_perturb aut sol)
+.
+Proof.
+  intros.
+  apply automaton_solution_perturb.
+  apply automaton_perturb_mono.
+  now apply automaton_solution_perturb.
+Qed.
+
 Lemma automaton_solution_least_converse
   {Q: Type}
   `{Finite Q}
@@ -2316,16 +2706,17 @@ Lemma automaton_solution_least_converse
   (q: Q)
 :
   automaton_least_solution aut sol ->
-  sol q == (if aut_accept aut q then 1 else 0) +
-           sum (map (fun q' =>
-               sum (map (fun a =>
-                   if aut_transitions aut a q q'
-                   then $a ;; sol q' else 0
-               ) finite_enum)
-           ) finite_enum)
+  sol q == automaton_perturb aut sol q
 .
 Proof.
-Admitted.
+  intros.
+  apply vector_lequiv_squeeze.
+  - apply H1.
+    apply automaton_solution_iterate.
+    apply H1.
+  - apply automaton_solution_perturb.
+    apply H1.
+Qed.
 
 Lemma antimirov_solution_link
   (t1 t2: term)
@@ -2339,40 +2730,44 @@ Lemma antimirov_solution_link
 .
 Proof.
   intros.
-  repeat rewrite automaton_solution_least_converse with (aut := automaton_antimirov (t1 ;; t2)).
-  - apply term_lequiv_split.
-    + apply term_lequiv_split_left.
-      destruct (aut_accept _ _) eqn:?.
-      * simpl in Heqb.
-        apply nullable_dec in Heqb.
-        dependent destruction Heqb.
-        assert (nullable_b (TTimesPre t2 d1) = true).
-        -- apply nullable_dec.
-           now apply NullableTimesPre with (d2 := d2).
-        -- simpl.
-           rewrite H2.
-           apply term_lequiv_refl.
-      * apply term_lequiv_zero.
-    + apply sum_lequiv_all; intros.
-      apply in_map_iff in H2.
-      destruct H2 as [d3 [? ?]].
-      subst.
-      apply sum_lequiv_all; intros.
-      apply in_map_iff in H2.
-      destruct H2 as [a [? ?]].
-      subst.
-      apply term_lequiv_split_right.
-      simpl.
-      destruct (derive_b _ _ _) eqn:?.
-      * apply derive_dec in Heqb.
-        eapply term_lequiv_trans.
-        2: {
-          apply sum_lequiv_member.
-          apply in_map_iff.
-          exists d3.
-          split; auto.
-        }
-        apply sum_lequiv_member.
+  rewrite automaton_solution_least_converse
+    with (aut := automaton_antimirov (t1 ;; t2))
+    by (apply compute_automaton_solution_least_solution).
+  rewrite automaton_solution_least_converse
+    with (aut := automaton_antimirov (t1 ;; t2)) (q := (TTimesPre t2 d1))
+    by (apply compute_automaton_solution_least_solution).
+  apply term_lequiv_split.
+  - apply term_lequiv_split_left.
+    simpl.
+    destruct (nullable_b _) eqn:?.
+    + simpl in Heqb.
+      apply nullable_dec in Heqb.
+      dependent destruction Heqb.
+      assert (nullable_b (TTimesPre t2 d1) = true).
+      * apply nullable_dec.
+        now apply NullableTimesPre with (d2 := d2).
+      * simpl.
+        rewrite H2.
+        apply term_lequiv_refl.
+    + apply term_lequiv_zero.
+  - apply sum_lequiv_all; intros.
+    apply in_map_iff in H2.
+    destruct H2 as [d3 [? ?]].
+    subst.
+    apply sum_lequiv_all; intros.
+    apply in_map_iff in H2.
+    destruct H2 as [a [? ?]].
+    subst.
+    apply term_lequiv_split_right.
+    simpl.
+    destruct (derive_b _ _ _) eqn:?.
+    + apply derive_dec in Heqb.
+      eapply term_lequiv_trans; swap 1 2.
+      * apply sum_lequiv_member.
+        apply in_map_iff.
+        exists d3.
+        split; auto.
+      * apply sum_lequiv_member.
         apply in_map_iff.
         exists a.
         assert (derive_b a (TTimesPre t2 d1) d3 = true).
@@ -2380,27 +2775,45 @@ Proof.
            dependent destruction Heqb.
            now apply DeriveTimesJump with (i := d2).
         -- now rewrite H2.
-      * apply term_lequiv_zero.
-  - apply compute_automaton_solution_least_solution.
-  - apply compute_automaton_solution_least_solution.
+    + apply term_lequiv_zero.
 Qed.
 
 Program Definition automaton_homomorphism_prepend
-  (a: A)
-  (t: term)
+  (t1 t2: term)
 :
-  automaton_homomorphism (automaton_antimirov t)
-                         (automaton_antimirov ($a ;; t))
+  automaton_homomorphism (automaton_antimirov t2)
+                         (automaton_antimirov (t1 ;; t2))
 := {|
   automaton_homomorphism_f d := TTimesPost _ d;
 |}.
 
-Lemma antimirov_solution_prepend (a: A) (t: term) (d: derivative t):
-  antimirov_solution t d <= antimirov_solution ($a ;; t) (TTimesPost _ d)
+Lemma antimirov_solution_prepend (t1 t2: term) (d: derivative t2):
+  antimirov_solution t2 d <= antimirov_solution (t1 ;; t2) (TTimesPost _ d)
 .
 Proof.
   apply antimirov_solution_homomorphism
-    with (h := automaton_homomorphism_prepend a t).
+    with (h := automaton_homomorphism_prepend t1 t2).
+Qed.
+
+Lemma term_roundtrip_shift_unit (t: term):
+  1 ;; term_roundtrip t <= term_roundtrip (1 ;; t)
+.
+Proof.
+  rewrite ETimesUnitLeft.
+  unfold term_roundtrip.
+  apply sum_lequiv_all; intros.
+  apply in_map_iff in H0.
+  destruct H0 as [d [? ?]]; subst.
+  autorewrite with initial_l.
+  rewrite map_map; simpl.
+  autorewrite with sum.
+  repeat rewrite EPlusUnit.
+  apply term_lequiv_trans
+    with (t2 := antimirov_solution (1 ;; t) (TTimesPost _ d)).
+  - apply antimirov_solution_prepend.
+  - apply antimirov_solution_link.
+    + constructor.
+    + now apply initial_list.
 Qed.
 
 Lemma term_roundtrip_shift_letter (a: A) (t: term):
@@ -2435,6 +2848,198 @@ Proof.
       now repeat constructor.
 Qed.
 
+Equations term_homomorphism_fold_f
+  {t: term}
+  (d: derivative (t ;; t*))
+  : derivative (t*)
+:= {
+  term_homomorphism_fold_f (TTimesPre _ d) := TStarInner _ d;
+  term_homomorphism_fold_f (TTimesPost _ (TStarInner _ d)) := TStarInner _ d;
+  term_homomorphism_fold_f (TTimesPost _ (TStarOne _)) := TStarOne _;
+}.
+
+Program Definition term_homomorphism_fold
+  (t: term)
+:
+  term_homomorphism (t ;; t*) (t*)
+:= {|
+  term_homomorphism_automaton_homomorphism := {|
+    automaton_homomorphism_f := term_homomorphism_fold_f;
+  |};
+|}.
+Next Obligation.
+  apply derive_dec.
+  apply derive_dec in H0.
+  dependent destruction H0.
+  - autorewrite with term_homomorphism_fold_f.
+    now constructor.
+  - dependent destruction H2;
+    autorewrite with term_homomorphism_fold_f.
+    + dependent destruction H1.
+      now apply DeriveStarInnerJump with (i := d0).
+    + dependent destruction H1.
+      now apply DeriveStarInnerJump with (i := i0).
+  - dependent destruction H0;
+    autorewrite with term_homomorphism_fold_f.
+    + now constructor.
+    + now apply DeriveStarInnerJump with (i := i).
+Qed.
+Next Obligation.
+  apply nullable_dec.
+  apply nullable_dec in H0.
+  dependent destruction H0.
+  - autorewrite with term_homomorphism_fold_f.
+    now constructor.
+  - dependent destruction H0;
+    autorewrite with term_homomorphism_fold_f.
+    + now constructor.
+    + constructor.
+Qed.
+Next Obligation.
+  dependent destruction H0.
+  autorewrite with term_homomorphism_fold_f.
+  now constructor.
+Qed.
+
+Lemma term_roundtrip_fold (t: term):
+  term_roundtrip (t ;; t*) <= term_roundtrip (t*)
+.
+Proof.
+  apply term_roundtrip_homomorphism.
+  apply term_homomorphism_fold.
+Qed.
+
+Equations term_homomorphism_times_f
+  {t1 t2 t3 t4: term}
+  (h1: term_homomorphism t1 t2)
+  (h2: term_homomorphism t3 t4)
+  (d: derivative (t1 ;; t3))
+:
+  derivative (t2 ;; t4)
+:= {
+  term_homomorphism_times_f h1 h2 (TTimesPre _ d) := TTimesPre _ (h1 d);
+  term_homomorphism_times_f h1 h2 (TTimesPost _ d) := TTimesPost _ (h2 d);
+}.
+
+Program Definition term_homomorphism_times
+  {t1 t2 t3 t4: term}
+  (h1: term_homomorphism t1 t2)
+  (h2: term_homomorphism t3 t4)
+:
+  term_homomorphism (t1 ;; t3) (t2 ;; t4)
+:= {|
+  term_homomorphism_automaton_homomorphism := {|
+    automaton_homomorphism_f := term_homomorphism_times_f h1 h2;
+  |};
+|}.
+Next Obligation.
+  destruct h1 as [h1a h1i].
+  destruct h2 as [h2a h2i].
+  apply derive_dec.
+  apply derive_dec in H0.
+  dependent destruction H0;
+  autorewrite with term_homomorphism_times_f;
+  simpl.
+  - constructor.
+    apply derive_dec.
+    apply h1a; simpl.
+    now apply derive_dec.
+  - apply DeriveTimesJump with (i := h2a i); simpl.
+    + apply nullable_dec.
+      apply h1a; simpl.
+      now apply nullable_dec.
+    + now apply h2i.
+    + apply derive_dec.
+      apply h2a; simpl.
+      now apply derive_dec.
+  - constructor.
+    apply derive_dec.
+    apply h2a; simpl.
+    now apply derive_dec.
+Qed.
+Next Obligation.
+  destruct h1 as [h1a h1i].
+  destruct h2 as [h2a h2i].
+  apply nullable_dec.
+  apply nullable_dec in H0.
+  dependent destruction H0;
+  autorewrite with term_homomorphism_times_f;
+  simpl.
+  - eapply NullableTimesPre with (d2 := h2a d2).
+    + apply nullable_dec.
+      apply h1a; simpl.
+      now apply nullable_dec.
+    + apply nullable_dec.
+      apply h2a; simpl.
+      now apply nullable_dec.
+    + now apply h2i.
+  - constructor.
+    apply nullable_dec.
+    apply h2a; simpl.
+    now apply nullable_dec.
+Qed.
+Next Obligation.
+  dependent destruction H0.
+  autorewrite with term_homomorphism_times_f.
+  constructor.
+  now apply h1.
+Qed.
+
+Lemma term_roundtrip_times (t1 t2 t3 t4: term):
+  term_homomorphism t1 t2 ->
+  term_homomorphism t3 t4 ->
+  term_roundtrip (t1 ;; t3) <= term_roundtrip (t2 ;; t4)
+.
+Proof.
+  intros.
+  apply term_roundtrip_homomorphism.
+  now apply term_homomorphism_times.
+Qed.
+
+Program Definition term_homomorphism_identity
+  (t: term)
+:
+  term_homomorphism t t
+:= {|
+  term_homomorphism_automaton_homomorphism := {|
+    automaton_homomorphism_f := id;
+  |};
+|}.
+
+Lemma term_roundtrip_nullable (t: term) (d: derivative t):
+  initial d ->
+  nullable d ->
+  1 <= term_roundtrip t
+.
+Proof.
+  intros.
+  unfold term_roundtrip.
+  apply term_lequiv_trans with (t2 := antimirov_solution t d).
+  - apply compute_automaton_solution_least_solution; auto.
+    now apply nullable_dec.
+  - apply sum_lequiv_member.
+    apply in_map_iff.
+    eexists; split; auto.
+    now apply initial_list.
+Qed.
+
+Program Definition term_homomorphism_skip
+  (t: term)
+:
+  term_homomorphism 1 (t*)
+:= {|
+  term_homomorphism_automaton_homomorphism := {|
+    automaton_homomorphism_f _ := TStarOne _;
+  |};
+|}.
+Next Obligation.
+  apply derive_dec in H0.
+  dependent destruction H0.
+Qed.
+Next Obligation.
+  constructor.
+Qed.
+
 Lemma term_roundtrip_shift (t1 t2: term):
   t1 ;; term_roundtrip t2 <= term_roundtrip (t1 ;; t2)
 .
@@ -2442,8 +3047,7 @@ Proof.
   revert t2; induction t1; intros.
   - rewrite ETimesZeroRight.
     apply term_lequiv_zero.
-  - rewrite ETimesUnitLeft.
-    apply term_roundtrip_unit_left.
+  - apply term_roundtrip_shift_unit.
   - apply term_roundtrip_shift_letter.
   - rewrite EDistributeRight.
     apply term_lequiv_trans
@@ -2468,9 +3072,19 @@ Proof.
     apply term_lequiv_split.
     + eapply term_lequiv_trans.
       * apply IHt1.
-      * admit.
-    + admit.
-Admitted.
+      * apply term_lequiv_trans
+          with (t2 := term_roundtrip ((t1 ;; t1*) ;; t2)).
+        -- apply term_roundtrip_assoc.
+        -- apply term_roundtrip_times.
+           ++ apply term_homomorphism_fold.
+           ++ apply term_homomorphism_identity.
+    + rewrite <- ETimesUnitLeft with (t := term_roundtrip t2).
+      eapply term_lequiv_trans.
+      apply term_roundtrip_shift_unit.
+      apply term_roundtrip_times.
+      * apply term_homomorphism_skip.
+      * apply term_homomorphism_identity.
+Qed.
 
 Lemma term_roundtrip_one_lower:
   1 <= term_roundtrip 1
@@ -2513,5 +3127,3 @@ Proof.
   - apply term_roundtrip_lower_bound.
   - apply term_roundtrip_upper_bound.
 Qed.
-
-Print Assumptions term_roundtrip_invariant.
