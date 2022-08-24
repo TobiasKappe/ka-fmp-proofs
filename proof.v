@@ -3522,12 +3522,200 @@ Inductive term_matches: term -> list A -> Prop :=
     term_matches (t*) (w1 ++ w2)
 .
 
+Lemma term_matches_star_split (t: term) (w: list A):
+  term_matches (t*) w <->
+  exists (l: list (list A)),
+    w = concat l /\
+    forall (w': list A), In w' l -> term_matches t w'
+.
+Proof.
+  split; intros.
+  - dependent induction H0.
+    + now exists nil.
+    + specialize (IHterm_matches2 t eq_refl).
+      destruct IHterm_matches2 as [l [? ?]]; subst.
+      exists (w1 :: l).
+      intuition.
+      destruct H0.
+      * now subst.
+      * now apply H1.
+  - destruct H0 as [l [? ?]]; subst.
+    induction l; simpl.
+    + apply MatchStarBase.
+    + apply MatchStarStep.
+      * apply H1.
+        now left.
+      * apply IHl; intros.
+        apply H1.
+        now right.
+Qed.
+
 Lemma term_equiv_sound (t1 t2: term) (w: list A):
   t1 == t2 ->
   term_matches t1 w <-> term_matches t2 w
 .
 Proof.
-Admitted.
+  intros.
+  revert w; dependent induction H0; intros.
+  - reflexivity.
+  - now symmetry.
+  - now transitivity (term_matches t2 w).
+  - split; intros.
+    + dependent destruction H0.
+      * apply MatchPlusLeft; intuition.
+      * apply MatchPlusRight; intuition.
+    + dependent destruction H0.
+      * apply MatchPlusLeft; intuition.
+      * apply MatchPlusRight; intuition.
+  - split; intros.
+    + dependent destruction H0.
+      apply MatchTimes; intuition.
+    + dependent destruction H0.
+      apply MatchTimes; intuition.
+  - split; intros.
+    + dependent induction H1.
+      * apply MatchStarBase.
+      * apply MatchStarStep; intuition.
+    + dependent induction H1.
+      * apply MatchStarBase.
+      * apply MatchStarStep; intuition.
+  - split; intros.
+    + now dependent destruction H0.
+    + now apply MatchPlusLeft.
+  - split; intros.
+    + dependent destruction H0.
+      * now apply MatchPlusRight.
+      * now apply MatchPlusLeft.
+    + dependent destruction H0.
+      * now apply MatchPlusRight.
+      * now apply MatchPlusLeft.
+  - split; intros.
+    + dependent destruction H0; [| dependent destruction H0].
+      * now apply MatchPlusLeft, MatchPlusLeft.
+      * now apply MatchPlusLeft, MatchPlusRight.
+      * now apply MatchPlusRight.
+    + dependent destruction H0; [dependent destruction H0|].
+      * now apply MatchPlusLeft.
+      * now apply MatchPlusRight, MatchPlusLeft.
+      * now apply MatchPlusRight, MatchPlusRight.
+  - split; intros.
+    + now dependent destruction H0.
+    + now apply MatchPlusLeft.
+  - split; intros.
+    + dependent destruction H0.
+      dependent destruction H0_0.
+      rewrite app_assoc.
+      apply MatchTimes; auto.
+      now apply MatchTimes.
+    + dependent destruction H0.
+      dependent destruction H0_.
+      rewrite <- app_assoc.
+      apply MatchTimes; auto.
+      now apply MatchTimes.
+  - split; intros.
+    + dependent destruction H0.
+      dependent destruction H0_0.
+      now rewrite app_nil_r.
+    + rewrite <- app_nil_r.
+      apply MatchTimes; auto.
+      apply MatchOne.
+  - split; intros.
+    + dependent destruction H0.
+      dependent destruction H0_.
+      now rewrite app_nil_l.
+    + rewrite <- app_nil_l.
+      apply MatchTimes; auto.
+      apply MatchOne.
+  - split; intros.
+    + dependent destruction H0.
+      dependent destruction H0_0.
+    + dependent destruction H0.
+  - split; intros.
+    + dependent destruction H0.
+      dependent destruction H0_.
+    + dependent destruction H0.
+  - split; intros.
+    + dependent destruction H0.
+      dependent destruction H0_0.
+      * apply MatchPlusLeft.
+        now apply MatchTimes.
+      * apply MatchPlusRight.
+        now apply MatchTimes.
+    + dependent destruction H0.
+      * dependent destruction H0.
+        apply MatchTimes; auto.
+        now apply MatchPlusLeft.
+      * dependent destruction H0.
+        apply MatchTimes; auto.
+        now apply MatchPlusRight.
+  - split; intros.
+    + dependent destruction H0.
+      dependent destruction H0_.
+      * apply MatchPlusLeft.
+        now apply MatchTimes.
+      * apply MatchPlusRight.
+        now apply MatchTimes.
+    + dependent destruction H0.
+      * dependent destruction H0.
+        apply MatchTimes; auto.
+        now apply MatchPlusLeft.
+      * dependent destruction H0.
+        apply MatchTimes; auto.
+        now apply MatchPlusRight.
+  - split; intros.
+    + dependent destruction H0.
+      * now apply MatchPlusRight, MatchOne.
+      * now apply MatchPlusLeft, MatchTimes.
+    + dependent destruction H0.
+      * dependent destruction H0.
+        now apply MatchStarStep.
+      * dependent destruction H0.
+        apply MatchStarBase.
+  - split; intros.
+    + apply term_matches_star_split in H0.
+      destruct H0 as [l [? ?]]; subst.
+      induction l using rev_ind; simpl.
+      * apply MatchPlusRight, MatchOne.
+      * rewrite concat_app; simpl.
+        rewrite app_nil_r.
+        apply MatchPlusLeft, MatchTimes.
+        apply term_matches_star_split.
+        -- exists l; intuition.
+        -- apply H1.
+           apply in_app_iff.
+           intuition.
+    + dependent destruction H0.
+      * dependent destruction H0.
+        apply term_matches_star_split in H0_.
+        destruct H0_ as [l [? ?]]; subst.
+        apply term_matches_star_split.
+        exists ((l ++ w2 :: nil)).
+        split.
+        -- rewrite concat_app.
+           simpl.
+           now rewrite app_nil_r.
+        -- intros.
+           apply in_app_iff in H0.
+           destruct H0.
+           ++ intuition.
+           ++ destruct H0; intuition.
+              now subst.
+      * dependent destruction H0.
+        apply MatchStarBase.
+  - split; intros.
+    + dependent destruction H1; auto.
+      dependent destruction H1.
+      apply term_matches_star_split in H1_.
+      destruct H1_ as [l [? ?]].
+      subst; induction l; simpl.
+      * apply IHterm_equiv.
+        now apply MatchPlusLeft, MatchPlusRight.
+      * apply IHterm_equiv.
+        apply MatchPlusLeft, MatchPlusLeft.
+        rewrite <- app_assoc.
+        apply MatchTimes; intuition.
+    + now apply MatchPlusRight.
+Qed.
 
 Equations automaton_transition_matrix
   {Q: Type}
