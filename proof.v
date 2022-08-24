@@ -732,6 +732,7 @@ Require Import Coq.Lists.List.
 Class Finite (X: Type) := {
   finite_enum: list X;
   finite_dec: forall (x1 x2: X), {x1 = x2} + {x1 <> x2};
+  finite_eqb x1 x2 := if finite_dec x1 x2 then true else false;
   finite_cover: forall x, In x finite_enum;
   finite_nodup: NoDup finite_enum;
 }.
@@ -3127,3 +3128,490 @@ Proof.
   - apply term_roundtrip_lower_bound.
   - apply term_roundtrip_upper_bound.
 Qed.
+
+Equations position_subset_glue
+  {n: nat}
+  (b: bool)
+  (f: position n -> bool)
+  (p: position (S n))
+:
+  bool
+:= {
+  position_subset_glue b _ PHere := b;
+  position_subset_glue _ f (PThere p) := f p;
+}.
+
+Definition empty_function {X: Type} (p: position 0): X :=
+  match p with
+  end
+.
+
+Equations position_subsets (n: nat): list (position n -> bool) := {
+  position_subsets 0 := empty_function :: nil;
+  position_subsets (S n) :=
+    let subsets_n := position_subsets n in
+    map (position_subset_glue false) subsets_n ++
+    map (position_subset_glue true) subsets_n;
+}.
+
+Lemma position_subsets_full (n: nat) (f: position n -> bool):
+  In f (position_subsets n)
+.
+Proof.
+  induction n;
+  autorewrite with position_subsets.
+  - left.
+    extensionality p.
+    dependent destruction p.
+  - simpl.
+    apply in_app_iff.
+    repeat rewrite in_map_iff.
+    destruct (f PHere) eqn:?.
+    + right.
+      exists (fun p => f (PThere p)).
+      split.
+      * extensionality p.
+        dependent destruction p;
+        now autorewrite with position_subset_glue.
+      * apply IHn.
+    + left.
+      exists (fun p => f (PThere p)).
+      split.
+      * extensionality p.
+        dependent destruction p;
+        now autorewrite with position_subset_glue.
+      * apply IHn.
+Qed.
+
+Lemma position_subsets_nodup (n: nat):
+  NoDup (position_subsets n)
+.
+Proof.
+  induction n;
+  autorewrite with position_subsets.
+  - constructor.
+    + now intro.
+    + constructor.
+  - simpl.
+    apply NoDup_app.
+    + apply NoDup_map; auto; intros.
+      extensionality p.
+      rewrite <- position_subset_glue_equation_2 with (f := x) (b := false) at 1.
+      rewrite <- position_subset_glue_equation_2 with (f := y) (b := false).
+      now rewrite H0.
+    + apply NoDup_map; auto; intros.
+      extensionality p.
+      rewrite <- position_subset_glue_equation_2 with (f := x) (b := true) at 1.
+      rewrite <- position_subset_glue_equation_2 with (f := y) (b := true).
+      now rewrite H0.
+    + intros; intro.
+      rewrite in_map_iff in H0, H1.
+      destruct H0 as [x0 [? ?]], H1 as [x1 [? ?]]; subst.
+      apply Bool.diff_true_false.
+      rewrite <- position_subset_glue_equation_1 with (f := x1) at 1.
+      rewrite <- position_subset_glue_equation_1 with (f := x0).
+      now rewrite H1.
+    + intros; intro.
+      rewrite in_map_iff in H0, H1.
+      destruct H0 as [x0 [? ?]], H1 as [x1 [? ?]]; subst.
+      apply Bool.diff_true_false.
+      rewrite <- position_subset_glue_equation_1 with (f := x0) at 1.
+      rewrite <- position_subset_glue_equation_1 with (f := x1).
+      now rewrite H1.
+Qed.
+
+Definition finite_subsets {X: Type} `{Finite X}: list (X -> bool) :=
+  map (fun f x => f (list_index x)) (position_subsets (length (finite_enum)))
+.
+
+Lemma conj_true (l: list bool):
+  conj l = true <-> (forall x, In x l -> x = true)
+.
+Proof.
+  split; intros.
+  - induction l;
+    autorewrite with conj in H0.
+    + destruct H1.
+    + apply andb_prop in H0.
+      destruct H0, H1.
+      * now subst.
+      * now apply IHl.
+  - induction l;
+    autorewrite with conj;
+    auto.
+    apply andb_true_intro.
+    split.
+    + apply H0.
+      now left.
+    + apply IHl.
+      intros.
+      apply H0.
+      now right.
+Qed.
+
+Lemma function_instantiation {X Y: Type} (f g: X -> Y) (x: X):
+  f = g -> f x = g x
+.
+Proof.
+  intros; now subst.
+Qed.
+
+Equations position_subsets_eqb {n: nat} (f g: position n -> bool) : bool := {
+  @position_subsets_eqb 0 _ _ := true;
+  @position_subsets_eqb (S n) f g :=
+    Bool.eqb (f PHere) (g PHere) &&
+    position_subsets_eqb (f ∘ PThere) (g ∘ PThere);
+}.
+
+Lemma position_subsets_eqb_correct (n: nat) (f g: position n -> bool):
+  position_subsets_eqb f g = true <-> f = g
+.
+Proof.
+  induction n;
+  autorewrite with position_subsets_eqb.
+  - split; intros; auto.
+    extensionality p.
+    dependent destruction p.
+  - rewrite Bool.andb_true_iff.
+    split; intros.
+    + destruct H0.
+      extensionality p.
+      dependent destruction p.
+      * now apply Bool.eqb_prop.
+      * replace (f (PThere p)) with ((f ∘ PThere) p) by reflexivity.
+        replace (g (PThere p)) with ((g ∘ PThere) p) by reflexivity.
+        apply IHn in H1.
+        now rewrite H1.
+    + split; intros.
+      * rewrite H0.
+        apply Bool.eqb_reflx.
+      * apply IHn.
+        now rewrite H0.
+Qed.
+
+Program Instance finite_subsets_finite
+  (X: Type)
+  `{Finite X}
+:
+  Finite (X -> bool)
+:= {|
+  finite_enum := finite_subsets;
+|}.
+Next Obligation.
+  destruct (position_subsets_eqb (x1 ∘ list_lookup) (x2 ∘ list_lookup)) eqn:?.
+  - left.
+    rewrite position_subsets_eqb_correct in Heqb.
+    extensionality x.
+    rewrite <- list_lookup_index with (x := x).
+    replace (x1 (list_lookup (list_index x)))
+      with ((x1 ∘ list_lookup) (list_index x))
+      by reflexivity.
+    replace (x2 (list_lookup (list_index x)))
+      with ((x2 ∘ list_lookup) (list_index x))
+      by reflexivity.
+    now rewrite Heqb.
+  - right.
+    rewrite <- Bool.not_true_iff_false in Heqb.
+    contradict Heqb.
+    apply position_subsets_eqb_correct.
+    now subst.
+Defined.
+Next Obligation.
+  unfold finite_subsets.
+  apply in_map_iff.
+  exists (fun p => x (list_lookup p)); split.
+  - extensionality x'.
+    now rewrite list_lookup_index.
+  - apply position_subsets_full.
+Qed.
+Next Obligation.
+  unfold finite_subsets.
+  apply NoDup_map.
+  - intros.
+    extensionality p.
+    rewrite <- list_index_lookup with (p := p).
+    replace (x (list_index (list_lookup p)))
+      with ((x ∘ list_index) (list_lookup p))
+      by reflexivity.
+    replace (y (list_index (list_lookup p)))
+      with ((y ∘ list_index) (list_lookup p))
+      by reflexivity.
+    apply function_instantiation.
+    apply H1.
+  - apply position_subsets_nodup.
+Qed.
+
+(* From Leapfrog *)
+Lemma NoDup_prod:
+  forall A B (l1: list A) (l2: list B),
+    NoDup l1 ->
+    NoDup l2 ->
+    NoDup (list_prod l1 l2).
+Proof.
+  induction l1; intros.
+  - constructor.
+  - simpl.
+    apply NoDup_app.
+    + apply NoDup_map; auto.
+      intros.
+      now inversion H2.
+    + apply IHl1; auto.
+      now inversion H0.
+    + intros.
+      rewrite in_map_iff in H2.
+      destruct x.
+      destruct H2 as [? [? ?]].
+      inversion H2; subst.
+      inversion H0.
+      contradict H6.
+      apply in_prod_iff in H6.
+      intuition.
+    + intros.
+      inversion_clear H0.
+      contradict H3.
+      apply in_map_iff in H3.
+      destruct H3 as [? [? ?]].
+      subst.
+      apply in_prod_iff in H2.
+      intuition.
+Qed.
+
+Program Instance product_finite
+  (X Y: Type)
+  `{Finite X}
+  `{Finite Y}
+:
+  Finite (prod X Y)
+:= {|
+  finite_enum := list_prod finite_enum finite_enum;
+|}.
+Next Obligation.
+  destruct (finite_dec x0 x).
+  - destruct (finite_dec y0 y).
+    + subst.
+      now left.
+    + right.
+      contradict n.
+      now inversion n.
+  - right.
+    contradict n.
+    now inversion n.
+Defined.
+Next Obligation.
+  apply in_prod;
+  apply finite_cover.
+Qed.
+Next Obligation.
+  apply NoDup_prod;
+  apply finite_nodup.
+Qed.
+
+Program Instance matrix_finite
+  (X Y: Type)
+  `{Finite X}
+  `{Finite Y}
+:
+  Finite (X -> Y -> bool)
+:= {|
+  finite_enum := map curry finite_enum
+|}.
+Next Obligation.
+  destruct (finite_dec (uncurry x1) (uncurry x2)).
+  - left.
+    extensionality x;
+    extensionality y.
+    replace x1 with (curry (uncurry x1)) by reflexivity.
+    replace x2 with (curry (uncurry x2)) by reflexivity.
+    now rewrite e.
+  - right.
+    contradict n.
+    extensionality xy.
+    destruct xy; simpl.
+    now rewrite n.
+Defined.
+Next Obligation.
+  replace x with (curry (uncurry x)) by reflexivity.
+  apply in_map_iff.
+  exists (uncurry x).
+  intuition.
+  replace finite_subsets
+    with (@finite_enum (prod X Y -> bool) _)
+    by reflexivity.
+  apply finite_cover.
+Qed.
+Next Obligation.
+  apply NoDup_map.
+  - intros.
+    extensionality xy.
+    destruct xy.
+    replace x with (uncurry (curry x)).
+    replace y with (uncurry (curry y)).
+    + simpl.
+      now rewrite H2.
+    + extensionality xy.
+      now destruct xy.
+    + extensionality xy.
+      now destruct xy.
+  - replace finite_subsets
+      with (@finite_enum (prod X Y -> bool) _)
+      by reflexivity.
+    apply finite_nodup.
+Qed.
+
+Definition vector_inner_product_bool
+  {X: Type}
+  `{Finite X}
+  (v1 v2: X -> bool)
+:
+  bool
+:=
+  disj (map (fun x => andb (v1 x) (v2 x)) finite_enum)
+.
+
+Definition matrix_product_bool
+  {X: Type}
+  `{Finite X}
+  (m1 m2: X -> X -> bool)
+  (x1 x2: X)
+:
+  bool
+:=
+  vector_inner_product_bool (m1 x1) (fun x => m2 x x2)
+.
+
+Definition automaton_transition_monad
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (final: Q -> Q -> bool)
+:
+  automaton (Q -> Q -> bool)
+:= {|
+  aut_transitions a m1 m2 :=
+    finite_eqb (matrix_product_bool (aut_transitions aut a) m1) m2;
+  aut_accept m :=
+    finite_eqb m final;
+|}.
+
+Inductive term_matches: term -> list A -> Prop :=
+| MatchOne:
+    term_matches 1 nil
+| MatchLetter:
+    forall (a: A),
+    term_matches ($ a) (a :: nil)
+| MatchPlusLeft:
+    forall (w: list A) (t1 t2: term),
+    term_matches t1 w ->
+    term_matches (t1 + t2) w
+| MatchPlusRight:
+    forall (w: list A) (t1 t2: term),
+    term_matches t2 w ->
+    term_matches (t1 + t2) w
+| MatchTimes:
+    forall (w1 w2: list A) (t1 t2: term),
+    term_matches t1 w1 ->
+    term_matches t2 w2 ->
+    term_matches (t1 ;; t2) (w1 ++ w2)
+| MatchStarBase:
+    forall (t: term),
+    term_matches (t*) nil
+| MatchStarStep:
+    forall (t: term) (w1 w2: list A),
+    term_matches t w1 ->
+    term_matches (t*) w2 ->
+    term_matches (t*) (w1 ++ w2)
+.
+
+Lemma term_equiv_sound (t1 t2: term) (w: list A):
+  t1 == t2 ->
+  term_matches t1 w <-> term_matches t2 w
+.
+Proof.
+Admitted.
+
+Equations automaton_transition_matrix
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (w: list A)
+:
+  Q -> Q -> bool
+:= {
+  automaton_transition_matrix aut nil := finite_eqb;
+  automaton_transition_matrix aut (a :: w) :=
+    matrix_product_bool (aut_transitions aut a)
+                        (automaton_transition_matrix aut w)
+}.
+
+Lemma matrix_product_bool_unit_left
+  {Q: Type}
+  `{Finite Q}
+  (m: Q -> Q -> bool)
+:
+  matrix_product_bool finite_eqb m = m
+.
+Proof.
+Admitted.
+
+Lemma term_matches_sum (l: list term) (w: list A):
+  term_matches (sum l) w ->
+  exists (t: term),
+    In t l /\ term_matches t w
+.
+Proof.
+Admitted.
+
+Lemma term_matches_prepend_letter (t: term) (a: A):
+  ~ term_matches ($a ;; t) nil
+.
+Proof.
+  intro.
+  dependent destruction H0.
+  dependent destruction H0_.
+  rewrite <- app_comm_cons in x.
+  inversion x.
+Qed.
+
+Lemma automaton_transition_monad_solution
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (initial final: Q -> Q -> bool)
+  (w: list A)
+:
+  let aut' := automaton_transition_monad aut final in
+  let sol' := compute_automaton_solution aut' in
+  term_matches (sol' initial) w <->
+  matrix_product_bool (automaton_transition_matrix aut w) initial = final
+.
+Proof.
+  intros.
+  induction w.
+  - split; intros.
+    + rewrite term_equiv_sound
+        with (t2 := automaton_perturb aut' sol' initial)
+        in H1.
+      * unfold automaton_perturb in H1.
+        dependent destruction H1.
+        -- unfold finite_eqb in H1.
+           destruct (finite_dec initial final).
+           ++ autorewrite with automaton_transition_matrix.
+              subst.
+              apply matrix_product_bool_unit_left.
+           ++ dependent destruction H1.
+        -- apply term_matches_sum in H1.
+           destruct H1 as [t [? ?]].
+           apply in_map_iff in H1.
+           destruct H1 as [next [? ?]]; subst.
+           apply term_matches_sum in H2.
+           destruct H2 as [t [? ?]].
+           apply in_map_iff in H1.
+           destruct H1 as [a [? ?]]; subst.
+           unfold finite_eqb in H2.
+           destruct (finite_dec _ _).
+           ++ now apply term_matches_prepend_letter in H2.
+           ++ dependent destruction H2.
+      * apply automaton_solution_least_converse.
+        apply compute_automaton_solution_least_solution.
+Admitted.
+
