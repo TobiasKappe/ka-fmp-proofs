@@ -3938,3 +3938,106 @@ Proof.
            apply MatchTimes; intuition.
            constructor.
 Qed.
+
+Equations term_empty (t: term): bool := {
+  term_empty 0 := true;
+  term_empty 1 := false;
+  term_empty ($ a) := false;
+  term_empty (t1 + t2) := term_empty t1 && term_empty t2;
+  term_empty (t1 ;; t2) := term_empty t1 || term_empty t2;
+  term_empty (t*) := false
+}.
+
+Lemma term_empty_dec (t: term):
+  term_empty t = false <-> exists w, term_matches t w
+.
+Proof.
+  induction t;
+  autorewrite with term_empty.
+  - intuition.
+    destruct H0 as [w ?].
+    dependent destruction H0.
+  - intuition.
+    exists nil.
+    apply MatchOne.
+  - intuition.
+    exists (a :: nil).
+    apply MatchLetter.
+  - rewrite Bool.andb_false_iff.
+    rewrite IHt1, IHt2.
+    split; intros.
+    + destruct H0.
+      * destruct H0 as [w ?].
+        exists w.
+        now apply MatchPlusLeft.
+      * destruct H0 as [w ?].
+        exists w.
+        now apply MatchPlusRight.
+    + destruct H0 as [w ?].
+      dependent destruction H0.
+      * left; now exists w.
+      * right; now exists w.
+  - rewrite Bool.orb_false_iff.
+    rewrite IHt1, IHt2.
+    split; intros.
+    + destruct H0.
+      destruct H0 as [w1 ?], H1 as [w2 ?].
+      exists (w1 ++ w2).
+      now apply MatchTimes.
+    + destruct H0 as [w ?].
+      dependent destruction H0.
+      split.
+      * now exists w1.
+      * now exists w2.
+  - intuition.
+    exists nil.
+    apply MatchStarBase.
+Qed.
+
+Lemma term_empty_zero (t: term):
+  term_empty t = true ->
+  t == 0
+.
+Proof.
+  induction t;
+  autorewrite with term_empty;
+  intros.
+  - reflexivity.
+  - discriminate.
+  - discriminate.
+  - rewrite Bool.andb_true_iff in H0.
+    destruct H0.
+    rewrite IHt1, IHt2; auto.
+    apply term_lequiv_refl.
+  - rewrite Bool.orb_true_iff in H0.
+    destruct H0.
+    + rewrite IHt1 by auto.
+      now rewrite ETimesZeroRight.
+    + rewrite IHt2 by auto.
+      now rewrite ETimesZeroLeft.
+  - discriminate.
+Qed.
+
+Require Import Btauto.
+
+Lemma term_empty_invariant (t1 t2: term):
+  t1 == t2 ->
+  term_empty t1 = term_empty t2
+.
+Proof.
+  intros.
+  dependent induction H0;
+  autorewrite with term_empty in *;
+  try congruence;
+  try rewrite <- IHterm_equiv;
+  btauto.
+Qed.
+
+Lemma term_zero_empty (t: term):
+  t == 0 ->
+  term_empty t = true
+.
+Proof.
+  intros.
+  now apply term_empty_invariant in H0.
+Qed.
