@@ -4147,3 +4147,63 @@ Proof.
   intros.
   now apply term_empty_invariant in H0.
 Qed.
+
+Definition automaton_accepting_matrices
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (q: Q)
+:
+  list (Q -> Q -> bool)
+:=
+  filter (fun m => vector_inner_product_bool (m q) (aut_accept aut))
+         finite_enum
+.
+
+Lemma automaton_transition_monad_solution_transpose
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (sols: matrix (Q -> Q -> bool))
+:
+  (forall m, automaton_solution (automaton_transition_monad aut m) (sols m)) ->
+  automaton_solution aut (fun q =>
+    sum (map (fun m => sols m finite_eqb)
+             (automaton_accepting_matrices aut q)
+    )
+  )
+.
+Proof.
+  intros.
+  split; intros.
+  - rewrite <- sum_distribute_left.
+    apply sum_lequiv_all; intros.
+    rewrite map_map in H3.
+    apply in_map_iff in H3.
+    destruct H3 as [m [? ?]]; subst.
+    apply term_lequiv_trans
+      with (t2 := sols (automaton_transition_matrix aut (a :: nil)) finite_eqb ;; sols m finite_eqb).
+    apply times_mor_mono.
+    admit.
+    apply term_lequiv_refl.
+    admit.
+  - apply term_lequiv_trans with (t2 := sols finite_eqb finite_eqb).
+    + apply (H1 finite_eqb finite_eqb); simpl.
+      now rewrite finite_eqb_eq.
+    + apply sum_lequiv_member.
+      apply in_map_iff.
+      exists finite_eqb.
+      split; auto.
+      unfold automaton_accepting_matrices.
+      apply filter_In; split.
+      * apply finite_cover.
+      * unfold vector_inner_product_bool.
+        apply disj_true.
+        apply in_map_iff.
+        exists q0.
+        split.
+        apply Bool.andb_true_iff.
+        split; auto.
+        now apply finite_eqb_eq.
+        apply finite_cover.
+Admitted.
