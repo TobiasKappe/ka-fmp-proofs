@@ -3847,6 +3847,184 @@ Proof.
     exists q3; intuition.
 Qed.
 
+Inductive automaton_accepts
+  {Q: Type}
+  (aut: automaton Q)
+:
+  Q -> list A -> Prop
+:=
+| AcceptsEmpty:
+  forall (q: Q),
+  aut_accept aut q = true ->
+  automaton_accepts aut q nil
+| AcceptsStep:
+  forall (q q': Q) (a: A) (w: list A),
+  aut_transitions aut a q q' = true ->
+  automaton_accepts aut q' w ->
+  automaton_accepts aut q (a :: w)
+.
+
+Lemma term_matches_automaton_perturb_nil
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (sol: vector Q)
+  (q: Q)
+:
+  term_matches (automaton_perturb aut sol q) nil <->
+  aut_accept aut q = true
+.
+Proof.
+  split; intros.
+  - unfold automaton_perturb in H1.
+    dependent destruction H1.
+    + destruct (aut_accept aut q); auto.
+      dependent destruction H1.
+    + apply term_matches_sum in H1.
+      destruct H1 as [t [? ?]].
+      apply in_map_iff in H1.
+      destruct H1 as [q' [? ?]]; subst.
+      apply term_matches_sum in H2.
+      destruct H2 as [t [? ?]].
+      apply in_map_iff in H1.
+      destruct H1 as [a [? ?]]; subst.
+      destruct (aut_transitions aut a q q');
+      dependent destruction H2.
+      apply app_eq_nil in x.
+      destruct x; subst.
+      dependent destruction H2_.
+  - unfold automaton_perturb.
+    apply MatchPlusLeft.
+    rewrite H1.
+    constructor.
+Qed.
+
+Lemma term_matches_automaton_perturb_cons
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (sol: vector Q)
+  (q: Q)
+  (a: A)
+  (w: list A)
+:
+  term_matches (automaton_perturb aut sol q) (a :: w) <->
+  exists (q': Q),
+    aut_transitions aut a q q' = true /\
+    term_matches (sol q') w
+.
+Proof.
+  split; intros.
+  - unfold automaton_perturb in H1.
+    dependent destruction H1.
+    + destruct (aut_accept aut q);
+      dependent destruction H1.
+    + apply term_matches_sum in H1.
+      destruct H1 as [t [? ?]].
+      apply in_map_iff in H1.
+      destruct H1 as [q' [? ?]]; subst.
+      exists q'.
+      apply term_matches_sum in H2.
+      destruct H2 as [t [? ?]].
+      apply in_map_iff in H1.
+      destruct H1 as [a' [? ?]]; subst.
+      destruct (aut_transitions aut a' q q') eqn:?;
+      dependent destruction H2.
+      dependent destruction H2_.
+      rewrite <- app_comm_cons in x.
+      rewrite app_nil_l in x.
+      inversion x; subst.
+      intuition.
+  - destruct H1 as [q' [? ?]].
+    unfold automaton_perturb.
+    apply MatchPlusRight.
+    apply term_matches_sum.
+    eexists; rewrite in_map_iff.
+    repeat split.
+    + exists q'; split; auto.
+      apply finite_cover.
+    + apply term_matches_sum.
+      eexists; split.
+      * apply in_map_iff.
+        exists a; rewrite H1.
+        intuition (apply finite_cover).
+      * replace (a :: w) with ((a :: nil) ++ w) by reflexivity.
+        apply MatchTimes; auto.
+        constructor.
+Qed.
+
+Lemma automaton_least_solution_match
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (sol: vector Q)
+  (q: Q)
+  (w: list A)
+:
+  automaton_least_solution aut sol ->
+  term_matches (sol q) w <->
+  automaton_accepts aut q w
+.
+Proof.
+  intro; revert q; induction w; intros;
+  rewrite term_equiv_sound
+    with (t2 := automaton_perturb aut sol q)
+    by (now apply automaton_solution_least_converse).
+  - rewrite term_matches_automaton_perturb_nil.
+    split; intros.
+    + now constructor.
+    + now dependent destruction H2.
+  - rewrite term_matches_automaton_perturb_cons.
+    split; intros.
+    + destruct H2 as [q' [? ?]].
+      apply AcceptsStep with (q' := q'); intuition.
+    + dependent destruction H2.
+      exists q'; split; auto.
+      now apply IHw.
+Qed.
+
+Lemma finite_eqb_eq (X: Type) `{Finite X} (x1 x2: X):
+  finite_eqb x1 x2 = true <-> x1 = x2
+.
+Proof.
+  unfold finite_eqb.
+  now destruct (finite_dec _ _).
+Qed.
+
+Lemma automaton_transition_monad_accepts
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (initial final: Q -> Q -> bool)
+  (w: list A)
+:
+  automaton_accepts (automaton_transition_monad aut final) initial w <->
+  matrix_product_bool (automaton_transition_matrix aut w) initial = final
+.
+Proof.
+  revert initial; induction w; intros initial;
+  autorewrite with automaton_transition_matrix.
+  - rewrite matrix_product_bool_unit_left.
+    split; intros.
+    + dependent destruction H1.
+      simpl in H1.
+      now rewrite finite_eqb_eq in H1.
+    + constructor.
+      simpl; subst.
+      now apply finite_eqb_eq.
+  - rewrite matrix_product_bool_associative.
+    split; intros.
+    + apply IHw.
+      dependent destruction H1.
+      simpl in H1.
+      apply finite_eqb_eq in H1.
+      now subst.
+    + apply AcceptsStep
+        with (q' := matrix_product_bool (aut_transitions aut a) (initial)).
+      * now apply finite_eqb_eq.
+      * now apply IHw.
+Qed.
+
 Lemma automaton_transition_monad_solution
   {Q: Type}
   `{Finite Q}
@@ -3860,83 +4038,11 @@ Lemma automaton_transition_monad_solution
   matrix_product_bool (automaton_transition_matrix aut w) initial = final
 .
 Proof.
-  intros.
-  revert initial; induction w; intros initial.
-  - rewrite term_equiv_sound
-      with (t2 := automaton_perturb aut' sol' initial)
-      by (apply automaton_solution_least_converse,
-                compute_automaton_solution_least_solution).
-    autorewrite with automaton_transition_matrix.
-    unfold automaton_perturb; simpl.
-    split; intros.
-    + dependent destruction H1.
-      * unfold finite_eqb in H1.
-        destruct (finite_dec _ _);
-        dependent destruction H1.
-        autorewrite with automaton_transition_matrix.
-        now rewrite matrix_product_bool_unit_left.
-      * apply term_matches_sum in H1.
-        destruct H1 as [t [? ?]].
-        apply in_map_iff in H1.
-        destruct H1 as [next [? ?]]; subst.
-        apply term_matches_sum in H2.
-        destruct H2 as [t [? ?]].
-        apply in_map_iff in H1.
-        destruct H1 as [a [? ?]]; subst.
-        unfold finite_eqb in H2.
-        destruct (finite_dec _ _);
-        dependent destruction H2.
-        now dependent destruction H2_.
-    + unfold finite_eqb.
-      rewrite matrix_product_bool_unit_left in H1.
-      destruct (finite_dec _ _); try easy.
-      apply MatchPlusLeft.
-      constructor.
-  - rewrite term_equiv_sound
-      with (t2 := automaton_perturb aut' sol' initial)
-      by (apply automaton_solution_least_converse,
-                compute_automaton_solution_least_solution).
-    autorewrite with automaton_transition_matrix.
-    unfold automaton_perturb.
-    simpl aut_accept.
-    rewrite matrix_product_bool_associative.
-    rewrite <- IHw.
-    split; intros.
-    + dependent destruction H1.
-      * destruct (finite_eqb _ _);
-        dependent destruction H1.
-      * apply term_matches_sum in H1.
-        destruct H1 as [t [? ?]].
-        apply in_map_iff in H1.
-        destruct H1 as [next [? ?]]; subst.
-        apply term_matches_sum in H2.
-        destruct H2 as [t [? ?]].
-        apply in_map_iff in H1.
-        destruct H1 as [a' [? ?]]; subst.
-        unfold finite_eqb in H2.
-        destruct (finite_dec _ _);
-        dependent destruction H2.
-        dependent destruction H2_.
-        rewrite <- app_comm_cons in x.
-        rewrite app_nil_l in x.
-        inversion x; now subst.
-    + apply MatchPlusRight.
-      apply term_matches_sum.
-      eexists; split.
-      * apply in_map_iff.
-        eexists; intuition.
-        apply finite_cover.
-      * apply term_matches_sum.
-        eexists; split; simpl.
-        -- apply in_map_iff.
-           exists a; intuition.
-           apply finite_cover.
-        -- unfold finite_eqb.
-           destruct (finite_dec _ _); intuition.
-           rewrite <- app_nil_l with (l := w).
-           rewrite app_comm_cons.
-           apply MatchTimes; intuition.
-           constructor.
+  simpl.
+  rewrite automaton_least_solution_match
+    with (aut := automaton_transition_monad aut final)
+    by (apply compute_automaton_solution_least_solution).
+  apply automaton_transition_monad_accepts.
 Qed.
 
 Equations term_empty (t: term): bool := {
