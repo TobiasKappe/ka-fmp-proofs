@@ -593,16 +593,6 @@ Proof.
   now rewrite ETimesUnitRight.
 Qed.
 
-Lemma vector_inner_product_scale
-  {n: nat}
-  (v1 v2: vector (position n))
-  (s: term)
-:
-  v1 ** v2 ;;; s == (v1 ** v2) ;; s
-.
-Proof.
-Admitted.
-
 Definition solution_nat
   {n: nat}
   (sys: system (position n))
@@ -3978,8 +3968,8 @@ Equations automaton_transition_matrix
 := {
   automaton_transition_matrix aut nil := finite_eqb;
   automaton_transition_matrix aut (a :: w) :=
-    matrix_product_bool (automaton_transition_matrix aut w)
-                        (aut_transitions aut a)
+    matrix_product_bool (aut_transitions aut a)
+                        (automaton_transition_matrix aut w)
 }.
 
 Lemma term_matches_sum (l: list term) (w: list A):
@@ -4279,10 +4269,7 @@ Lemma automaton_transition_monad_accepts
   matrix_product_bool initial (automaton_transition_matrix aut w) = final
 .
 Proof.
-Admitted.
-
-(*
-  revert final; induction w; intros final;
+  revert initial; induction w; intros initial;
   autorewrite with automaton_transition_matrix.
   - rewrite matrix_product_bool_unit_right.
     split; intros.
@@ -4293,17 +4280,18 @@ Admitted.
       simpl; subst.
       now apply finite_eqb_eq.
   - split; intros.
-    + apply IHw.
-      dependent destruction H1.
+    + dependent destruction H1.
       simpl in H1.
       apply finite_eqb_eq in H1.
       subst.
-      now subst.
+      rewrite <- matrix_product_bool_associative.
+      now apply IHw.
     + apply AcceptsStep
-        with (q' := matrix_product_bool (aut_transitions aut a) (initial)).
+        with (q' := matrix_product_bool initial (aut_transitions aut a)).
       * now apply finite_eqb_eq.
-      * now apply IHw.
-Qed. *)
+      * apply IHw.
+        now rewrite matrix_product_bool_associative.
+Qed.
 
 Lemma automaton_transition_monad_solution
   {Q: Type}
@@ -4632,7 +4620,10 @@ Proof.
   apply compute_automaton_solution_least_solution.
   simpl.
   apply finite_eqb_eq.
-  now autorewrite with automaton_transition_matrix.
+  autorewrite with automaton_transition_matrix.
+  rewrite matrix_product_bool_unit_left.
+  rewrite matrix_product_bool_unit_right.
+  reflexivity.
 Qed.
 
 Lemma automaton_transition_monad_solution_transpose
@@ -4688,7 +4679,7 @@ Proof.
     exists q2.
     split.
     autorewrite with automaton_transition_matrix.
-    now rewrite matrix_product_bool_unit_left.
+    now rewrite matrix_product_bool_unit_right.
     exact H2.
     auto.
     apply finite_cover.
