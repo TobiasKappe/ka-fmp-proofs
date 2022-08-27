@@ -3739,7 +3739,7 @@ Definition automaton_transition_monad
   automaton (Q -> Q -> bool)
 := {|
   aut_transitions a m1 m2 :=
-    finite_eqb (matrix_product_bool (aut_transitions aut a) m1) m2;
+    finite_eqb (matrix_product_bool m1 (aut_transitions aut a)) m2;
   aut_accept m :=
     finite_eqb m final;
 |}.
@@ -4065,6 +4065,32 @@ Proof.
     + discriminate.
 Qed.
 
+Lemma matrix_product_bool_unit_right
+  {Q: Type}
+  `{Finite Q}
+  (m: Q -> Q -> bool)
+:
+  matrix_product_bool m finite_eqb = m
+.
+Proof.
+  extensionality q1;
+  extensionality q2.
+  destruct (m _ _) eqn:?.
+  - apply matrix_product_characterise.
+    exists q2; intuition.
+    unfold finite_eqb.
+    now destruct (finite_dec _ _).
+  - apply Bool.not_true_iff_false.
+    apply Bool.not_true_iff_false in Heqb.
+    contradict Heqb.
+    apply matrix_product_characterise in Heqb.
+    destruct Heqb as [q3 [? ?]].
+    unfold finite_eqb in H2.
+    destruct (finite_dec _ _).
+    + now subst.
+    + discriminate.
+Qed.
+
 Lemma matrix_product_bool_associative
   {Q: Type}
   `{Finite Q}
@@ -4250,12 +4276,15 @@ Lemma automaton_transition_monad_accepts
   (w: list A)
 :
   automaton_accepts (automaton_transition_monad aut final) initial w <->
-  matrix_product_bool (automaton_transition_matrix aut w) initial = final
+  matrix_product_bool initial (automaton_transition_matrix aut w) = final
 .
 Proof.
-  revert initial; induction w; intros initial;
+Admitted.
+
+(*
+  revert final; induction w; intros final;
   autorewrite with automaton_transition_matrix.
-  - rewrite matrix_product_bool_unit_left.
+  - rewrite matrix_product_bool_unit_right.
     split; intros.
     + dependent destruction H1.
       simpl in H1.
@@ -4263,18 +4292,18 @@ Proof.
     + constructor.
       simpl; subst.
       now apply finite_eqb_eq.
-  - rewrite matrix_product_bool_associative.
-    split; intros.
+  - split; intros.
     + apply IHw.
       dependent destruction H1.
       simpl in H1.
       apply finite_eqb_eq in H1.
+      subst.
       now subst.
     + apply AcceptsStep
         with (q' := matrix_product_bool (aut_transitions aut a) (initial)).
       * now apply finite_eqb_eq.
       * now apply IHw.
-Qed.
+Qed. *)
 
 Lemma automaton_transition_monad_solution
   {Q: Type}
@@ -4286,7 +4315,7 @@ Lemma automaton_transition_monad_solution
   let aut' := automaton_transition_monad aut final in
   let sol' := compute_automaton_solution aut' in
   term_matches (sol' initial) w <->
-  matrix_product_bool (automaton_transition_matrix aut w) initial = final
+  matrix_product_bool initial (automaton_transition_matrix aut w) = final
 .
 Proof.
   simpl.
@@ -4400,6 +4429,158 @@ Proof.
   now apply term_empty_invariant in H0.
 Qed.
 
+Definition automaton_lift
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+:
+  automaton (prod Q Q)
+:= {|
+  aut_accept '(q1, q2) := finite_eqb q1 q2;
+  aut_transitions a '(q1, _) '(q1', _) := aut_transitions aut a q1 q1'
+|}.
+
+Definition vector_shift_both
+  {Q: Type}
+  `{Finite Q}
+  (v: vector (prod (Q -> Q -> bool) (Q -> Q -> bool)))
+  (h: Q -> Q -> bool)
+  (fg: prod (Q -> Q -> bool) (Q -> Q -> bool))
+:
+  term
+:=
+  v (matrix_product_bool h (fst fg), matrix_product_bool h (snd fg))
+.
+
+Lemma automaton_transition_monad_lift_shift_solution
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (scale: term)
+  (sol: vector (prod (Q -> Q -> bool) (Q -> Q -> bool)))
+  (h: Q -> Q -> bool)
+:
+  automaton_solution (automaton_lift (automaton_transition_monad aut finite_eqb)) scale sol ->
+  automaton_solution (automaton_lift (automaton_transition_monad aut finite_eqb)) scale (vector_shift_both sol h)
+.
+Proof.
+  split; simpl; intros.
+  - destruct q1, q2.
+    apply finite_eqb_eq in H2; subst.
+    unfold vector_shift_both; simpl.
+    apply H1; simpl.
+    apply finite_eqb_eq.
+    apply matrix_product_bool_associative.
+  - destruct q.
+    apply finite_eqb_eq in H2; subst.
+    apply H1; simpl.
+    now apply finite_eqb_eq.
+Qed.
+
+Definition automaton_relation_solution_path
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+:=
+  compute_automaton_solution (automaton_lift (automaton_transition_monad aut finite_eqb))
+.
+
+Definition automaton_relation_solution
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (m: Q -> Q -> bool)
+:=
+  automaton_relation_solution_path aut (finite_eqb, m)
+.
+
+Lemma automaton_relation_solution_path_shift
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (h: Q -> Q -> bool)
+:
+  automaton_relation_solution_path aut <==
+  vector_shift_both (automaton_relation_solution_path aut) h
+.
+Proof.
+  intro.
+  unfold automaton_relation_solution_path.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
+  apply compute_automaton_solution_least_solution.
+  apply automaton_transition_monad_lift_shift_solution.
+  apply automaton_least_solution_invariant.
+  apply compute_automaton_solution_least_solution.
+Qed.
+
+Definition vector_shift_single
+  {Q: Type}
+  `{Finite Q}
+  (v: vector (prod (Q -> Q -> bool) (Q -> Q -> bool)))
+  (h: Q -> Q -> bool)
+  (fg: prod (Q -> Q -> bool) (Q -> Q -> bool))
+:
+  term
+:=
+  v (fst fg, matrix_product_bool (snd fg) h)
+.
+
+Lemma automaton_relation_solution_path_shift_single
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (h: Q -> Q -> bool)
+:
+  automaton_relation_solution_path aut ;;;
+  automaton_relation_solution aut h <==
+  vector_shift_single (automaton_relation_solution_path aut) h
+.
+Proof.
+  unfold automaton_relation_solution_path, automaton_relation_solution.
+  apply compute_automaton_solution_least_solution.
+  split; intros.
+  - unfold vector_shift_single.
+    destruct q1, q2; simpl in *.
+    apply finite_eqb_eq in H1; subst.
+    pose proof (vector_scale_unit (Q := (prod (Q -> Q -> bool) (Q -> Q -> bool)))).
+    specialize (H1 (compute_automaton_solution (automaton_lift (automaton_transition_monad aut finite_eqb)))).
+    rewrite <- (H1 (matrix_product_bool b (aut_transitions aut a), matrix_product_bool b2 h)).
+    rewrite <- (H1 (b, matrix_product_bool b0 h)).
+    apply compute_automaton_solution_least_solution.
+    simpl.
+    now apply finite_eqb_eq.
+  - unfold vector_shift_single.
+    destruct q; simpl in *.
+    apply finite_eqb_eq in H1; subst.
+    replace b0
+      with (matrix_product_bool b0 finite_eqb) at 1
+      by (apply matrix_product_bool_unit_right).
+    replace b0
+      with (matrix_product_bool b0 finite_eqb) at 3
+      by (apply matrix_product_bool_unit_right).
+    eapply term_lequiv_trans.
+    apply automaton_relation_solution_path_shift.
+    unfold vector_shift_both; simpl.
+    repeat rewrite matrix_product_bool_unit_right.
+    unfold automaton_relation_solution_path.
+    apply term_lequiv_refl.
+Qed.
+
+Lemma automaton_relation_solution_merge
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (f g: Q -> Q -> bool)
+:
+  automaton_relation_solution aut f ;;
+  automaton_relation_solution aut g <=
+  automaton_relation_solution aut (matrix_product_bool f g)
+.
+Proof.
+  unfold automaton_relation_solution at 1.
+  apply automaton_relation_solution_path_shift_single.
+Qed.
+
 Definition automaton_accepting_matrices
   {Q: Type}
   `{Finite Q}
@@ -4412,50 +4593,128 @@ Definition automaton_accepting_matrices
          finite_enum
 .
 
+Definition automaton_sum_accepting_matrices
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (q: Q)
+:
+  term
+:=
+  sum (map (automaton_relation_solution aut)
+           (automaton_accepting_matrices aut q))
+.
+
+Lemma automaton_relation_solution_step
+  {Q: Type}
+  `{Finite Q}
+  (a: A)
+  (aut: automaton Q)
+:
+  $ a <= automaton_relation_solution aut (automaton_transition_matrix aut (a :: nil))
+.
+Proof.
+  unfold automaton_relation_solution.
+  unfold automaton_relation_solution_path.
+  apply term_lequiv_trans with (t2 := $a ;; compute_automaton_solution
+  (automaton_lift (automaton_transition_monad aut finite_eqb))
+  (automaton_transition_matrix aut (a :: nil), automaton_transition_matrix aut (a :: nil))).
+  rewrite <- ETimesUnitRight with (t := $a) at 1.
+  apply times_mor_mono.
+  apply term_lequiv_refl.
+  unfold term_lequiv.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
+  apply compute_automaton_solution_least_solution.
+  simpl.
+  now apply finite_eqb_eq.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ (finite_eqb, _)).
+  apply compute_automaton_solution_least_solution.
+  simpl.
+  apply finite_eqb_eq.
+  now autorewrite with automaton_transition_matrix.
+Qed.
+
 Lemma automaton_transition_monad_solution_transpose
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
-  (sols: matrix (Q -> Q -> bool))
 :
-  (forall m, automaton_solution (automaton_transition_monad aut m) 1 (sols m)) ->
-  automaton_solution aut 1 (fun q =>
-    sum (map (fun m => sols m finite_eqb)
-             (automaton_accepting_matrices aut q)
-    )
-  )
+  compute_automaton_solution aut <== automaton_sum_accepting_matrices aut
 .
 Proof.
-  intros.
+  intro.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut q).
+  apply compute_automaton_solution_least_solution.
   split; intros.
-  - rewrite <- sum_distribute_left.
+  - unfold automaton_sum_accepting_matrices.
+    rewrite <- sum_distribute_left.
     apply sum_lequiv_all; intros.
-    rewrite map_map in H3.
+    apply in_map_iff in H2.
+    destruct H2 as [? [? ?]]; subst.
     apply in_map_iff in H3.
-    destruct H3 as [m [? ?]]; subst.
-    apply term_lequiv_trans
-      with (t2 := sols (automaton_transition_matrix aut (a :: nil)) finite_eqb ;; sols m finite_eqb).
+    destruct H3 as [? [? ?]].
+    unfold automaton_accepting_matrices in H3.
+    apply filter_In in H3.
+    destruct H3 as [_ ?].
+    eapply term_lequiv_trans.
     apply times_mor_mono.
-    admit.
+    apply automaton_relation_solution_step with (aut := aut).
     apply term_lequiv_refl.
-    admit.
-  - apply term_lequiv_trans with (t2 := sols finite_eqb finite_eqb).
-    + apply (H1 finite_eqb); simpl.
-      now rewrite finite_eqb_eq.
-    + apply sum_lequiv_member.
-      apply in_map_iff.
-      exists finite_eqb.
-      split; auto.
-      unfold automaton_accepting_matrices.
-      apply filter_In; split.
-      * apply finite_cover.
-      * unfold vector_inner_product_bool.
-        apply disj_true.
-        apply in_map_iff.
-        exists q.
-        split.
-        apply Bool.andb_true_iff.
-        split; auto.
-        now apply finite_eqb_eq.
-        apply finite_cover.
-Admitted.
+    subst.
+    eapply term_lequiv_trans.
+    apply automaton_relation_solution_merge.
+    apply sum_lequiv_member.
+    apply in_map_iff.
+    eexists.
+    split; auto.
+    unfold automaton_accepting_matrices.
+    apply filter_In.
+    split; [apply finite_cover |].
+    unfold vector_inner_product_bool.
+    apply disj_true.
+    apply in_map_iff.
+    unfold vector_inner_product_bool in H3.
+    apply disj_true in H3.
+    apply in_map_iff in H3.
+    destruct H3 as [? [? ?]].
+    apply Bool.andb_true_iff in H2.
+    destruct H2.
+    exists x.
+    split.
+    apply Bool.andb_true_iff.
+    split.
+    apply matrix_product_characterise.
+    exists q2.
+    split.
+    autorewrite with automaton_transition_matrix.
+    now rewrite matrix_product_bool_unit_left.
+    exact H2.
+    auto.
+    apply finite_cover.
+  - unfold automaton_sum_accepting_matrices.
+    eapply term_lequiv_trans with (t2 := automaton_relation_solution aut finite_eqb).
+    unfold automaton_relation_solution.
+    unfold automaton_relation_solution_path.
+    rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
+    apply compute_automaton_solution_least_solution.
+    simpl.
+    now apply finite_eqb_eq.
+    apply sum_lequiv_member.
+    apply in_map_iff.
+    eexists; split; auto.
+    unfold automaton_accepting_matrices.
+    apply filter_In.
+    split.
+    apply finite_cover.
+    unfold vector_inner_product_bool.
+    apply disj_true.
+    apply in_map_iff.
+    exists q0.
+    split.
+    apply Bool.andb_true_iff.
+    split.
+    now apply finite_eqb_eq.
+    auto.
+    apply finite_cover.
+Qed.
