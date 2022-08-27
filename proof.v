@@ -264,31 +264,32 @@ Record system (Q: Type) := {
 Arguments smat {Q}.
 Arguments svec {Q}.
 
-Record solution_at
+Record solution
   {Q: Type}
   (sys: system Q)
+  (scale: term)
   (sol: vector Q)
-  (q: Q)
 := {
-  solution_move: forall (q': Q), smat sys q q' ;; sol q' <= sol q;
-  solution_bias: svec sys q <= sol q;
+  solution_move:
+    forall (q q': Q),
+    smat sys q q' ;; sol q' <= sol q;
+  solution_bias:
+    forall (q: Q),
+    svec sys q ;; scale <= sol q;
 }.
-
-Definition solution
-  {Q: Type}
-  (sys: system Q)
-  (sol: vector Q)
-:=
-  forall (q: Q), solution_at sys sol q
-.
 
 Record least_solution
   {Q: Type}
   (sys: system Q)
+  (scale: term)
   (sol: vector Q)
 := {
-  least_solution_solution: solution sys sol;
-  least_solution_least: forall sol', solution sys sol' -> sol <== sol'
+  least_solution_solution:
+    solution sys scale sol;
+  least_solution_least:
+    forall sol',
+    solution sys scale sol' ->
+    sol <== sol'
 }.
 
 Definition compress_system
@@ -569,131 +570,55 @@ Proof.
       apply H.
 Qed.
 
+Definition vector_scale
+  {Q: Type}
+  (v: vector Q)
+  (t: term)
+  (q: Q)
+:=
+  v q ;; t
+.
+
+Notation "v ;;; t" := (vector_scale v t) (at level 35).
+
+Lemma vector_scale_unit
+  {Q: Type}
+  (v: vector Q)
+:
+  v ;;; 1 === v
+.
+Proof.
+  intro q.
+  unfold vector_scale.
+  now rewrite ETimesUnitRight.
+Qed.
+
+Lemma vector_inner_product_scale
+  {n: nat}
+  (v1 v2: vector (position n))
+  (s: term)
+:
+  v1 ** v2 ;;; s == (v1 ** v2) ;; s
+.
+Proof.
+Admitted.
+
 Definition solution_nat
   {n: nat}
   (sys: system (position n))
+  (scale: term)
   (sol: vector (position n))
 :=
-  smat sys <*> sol <+> svec sys <== sol
+  smat sys <*> sol <+> svec sys ;;; scale <== sol
 .
-
-Lemma compute_solution_nat_solution_nat
-  {n: nat}
-  (sys: system (position n))
-:
-  solution_nat sys (compute_solution_nat sys)
-.
-Proof.
-  unfold solution_nat; intro p.
-  dependent induction p.
-  - unfold vector_sum, matrix_vector_product.
-    autorewrite with inner_product.
-    autorewrite with compute_solution_nat; simpl.
-    rewrite ETimesAssoc.
-    rewrite <- EPlusAssoc with (t3 := svec sys PHere).
-    rewrite EPlusComm with (t2 := svec sys PHere).
-    rewrite <- ETimesUnitLeft with (t := _ + # _ ** # compute_solution_nat sys).
-    rewrite compute_solution_nat_chomp.
-    rewrite <- EDistributeRight.
-    rewrite <- EStarLeft.
-    apply term_lequiv_refl.
-  - unfold vector_sum, matrix_vector_product.
-    autorewrite with inner_product.
-    autorewrite with compute_solution_nat; simpl.
-    rewrite ETimesAssoc.
-    rewrite EDistributeLeft.
-    rewrite compute_solution_nat_chomp.
-    rewrite vector_inner_product_scale_left.
-    rewrite <- EPlusAssoc with (t1 := _ ;; svec sys PHere).
-    rewrite vector_inner_product_distribute_left.
-    rewrite compress_system_mat.
-    rewrite EPlusComm with (t1 := _ ;; svec sys PHere).
-    rewrite <- EPlusAssoc with (t3 := svec sys (PThere p)).
-    rewrite EPlusComm with (t2 := svec sys (PThere p)) .
-    rewrite compress_system_vec.
-    apply IHp.
-Qed.
-
-Lemma solution_bound
-  {n: nat}
-  (sys: system (position (S n)))
-  (sol: vector (position (S n)))
-:
-  solution_nat sys sol ->
-  term_lequiv ((smat sys PHere PHere)* ;; (# smat sys PHere ** # sol + svec sys PHere)) (sol PHere)
-.
-Proof.
-  intros.
-  apply EFixLeft.
-  rewrite EPlusAssoc.
-  rewrite <- inner_product_equation_2.
-  apply H.
-Qed.
-
-Lemma solution_project
-  {n: nat}
-  (sys: system (position (S n)))
-  (sol: vector (position (S n)))
-:
-  solution_nat sys sol ->
-  solution_nat (compress_system sys) (# sol)
-.
-Proof.
-  intros; intro p.
-  unfold vector_sum, matrix_vector_product.
-  rewrite <- compress_system_mat.
-  rewrite <- compress_system_vec.
-  rewrite <- vector_inner_product_distribute_left.
-  rewrite <- vector_inner_product_scale_left.
-  rewrite EPlusComm with (t1 := svec sys (PThere p)).
-  rewrite EPlusAssoc.
-  rewrite <- EPlusAssoc with (t2 := # smat sys (PThere p) ** # sol).
-  rewrite EPlusComm with (t1 := # smat sys (PThere p) ** # sol).
-  rewrite EPlusAssoc.
-  rewrite <- EDistributeLeft.
-  rewrite <- ETimesAssoc.
-  match goal with
-  | |- ?lhs <= ?rhs => fold (term_lequiv lhs rhs)
-  end.
-  rewrite solution_bound; auto.
-  rewrite <- inner_product_equation_2.
-  apply H.
-Qed.
-
-Lemma compute_solution_nat_least
-  {n: nat}
-  (sys: system (position n))
-  (sol: vector (position n))
-:
-  solution_nat sys sol ->
-  compute_solution_nat sys <== sol
-.
-Proof.
-  intros.
-  dependent induction n; intro p; dependent destruction p.
-  - autorewrite with compute_solution_nat; simpl.
-    rewrite EPlusComm with (t1 := svec sys PHere).
-    match goal with
-    | |- ?lhs <= ?rhs => fold (term_lequiv lhs rhs)
-    end.
-    rewrite IHn with (sol := # sol).
-    + now apply solution_bound.
-    + now apply solution_project.
-  - autorewrite with compute_solution_nat; simpl.
-    eapply term_lequiv_trans.
-    apply IHn.
-    + apply solution_project.
-      apply H.
-    + unfold vector_chomp.
-      now rewrite EPlusIdemp.
-Qed.
 
 Lemma solution_iff_solution_nat
   {n: nat}
   (sys: system (position n))
+  (scale: term)
   (sol: vector (position n))
 :
-  solution sys sol <-> solution_nat sys sol
+  solution sys scale sol <-> solution_nat sys scale sol
 .
 Proof.
   split; intros.
@@ -704,7 +629,7 @@ Proof.
     + apply term_lequiv_inner_product_split; intro.
       apply H.
     + apply H.
-  - intro p; split; intros.
+  - split; intros.
     + eapply term_lequiv_trans; [apply term_lequiv_split_left|].
       * apply term_lequiv_inner_product.
       * apply H.
@@ -713,16 +638,284 @@ Proof.
       * apply H.
 Qed.
 
-Lemma compute_solution_nat_least_solution
+Lemma solution_one_solution_nat
+  {Q: Type}
+  (sys: system Q)
+  (scale: term)
+  (sol: vector Q)
+:
+  solution sys 1 sol ->
+  solution sys scale (sol ;;; scale)
+.
+Proof.
+  split; intros.
+  - unfold vector_scale.
+    rewrite ETimesAssoc.
+    apply times_mor_mono; try reflexivity.
+    apply H.
+  - unfold vector_scale.
+    apply times_mor_mono; try reflexivity.
+    unfold term_lequiv.
+    rewrite <- ETimesUnitRight with (t := svec sys q).
+    apply H.
+Qed.
+
+Lemma compute_solution_nat_solution_nat_one
   {n: nat}
   (sys: system (position n))
 :
-  least_solution sys (compute_solution_nat sys)
+  solution_nat sys 1 (compute_solution_nat sys)
+.
+Proof.
+  unfold solution_nat; intro p.
+  dependent induction p.
+  + unfold vector_sum, matrix_vector_product.
+    autorewrite with inner_product.
+    autorewrite with compute_solution_nat; simpl.
+    rewrite ETimesAssoc.
+    unfold vector_scale; rewrite ETimesUnitRight.
+    rewrite <- EPlusAssoc with (t3 := svec sys PHere).
+    rewrite EPlusComm with (t2 := svec sys PHere).
+    rewrite <- ETimesUnitLeft
+      with (t := _ + # _ ** # compute_solution_nat sys).
+    rewrite compute_solution_nat_chomp.
+    rewrite <- EDistributeRight.
+    rewrite <- EStarLeft.
+    apply term_lequiv_refl.
+  + unfold vector_sum, matrix_vector_product.
+    autorewrite with inner_product.
+    autorewrite with compute_solution_nat; simpl.
+    rewrite ETimesAssoc.
+    rewrite EDistributeLeft.
+    rewrite compute_solution_nat_chomp.
+    rewrite vector_inner_product_scale_left.
+    rewrite <- EPlusAssoc with (t1 := _ ;; svec sys PHere).
+    rewrite vector_inner_product_distribute_left.
+    rewrite compress_system_mat.
+    rewrite EPlusComm with (t1 := _ ;; svec sys PHere).
+    unfold vector_scale; rewrite ETimesUnitRight.
+    rewrite <- EPlusAssoc with (t3 := svec sys (PThere p)).
+    rewrite EPlusComm with (t2 := svec sys (PThere p)) .
+    rewrite compress_system_vec.
+    unfold vector_scale, vector_sum in IHp;
+    setoid_rewrite ETimesUnitRight in IHp.
+    apply IHp.
+Qed.
+
+Lemma solution_bound_mat
+  {Q: Type}
+  (sys: system Q)
+  (scale: term)
+  (sol: vector Q)
+  (q q': Q)
+:
+  solution sys scale sol ->
+  term_lequiv ((smat sys q q)* ;; smat sys q q' ;; sol q') (sol q)
+.
+Proof.
+  intros.
+  rewrite <- ETimesAssoc.
+  apply EFixLeft.
+  apply term_lequiv_split;
+  apply H.
+Qed.
+
+Lemma solution_bound_vec
+  {Q: Type}
+  (sys: system Q)
+  (scale: term)
+  (sol: vector Q)
+  (q: Q)
+:
+  solution sys scale sol ->
+  term_lequiv ((smat sys q q)* ;; svec sys q ;; scale) (sol q)
+.
+Proof.
+  intros.
+  rewrite <- ETimesAssoc.
+  apply EFixLeft.
+  apply term_lequiv_split;
+  apply H.
+Qed.
+
+Lemma solution_bound
+  {Q: Type}
+  (sys: system Q)
+  (scale: term)
+  (sol: vector Q)
+  (q q': Q)
+:
+  solution sys scale sol ->
+  term_lequiv ((smat sys q q)* ;; (smat sys q q' ;; sol q' + svec sys q ;; scale)) (sol q)
+.
+Proof.
+  intros.
+  rewrite EDistributeLeft.
+  apply term_lequiv_split.
+  + rewrite ETimesAssoc.
+    eapply solution_bound_mat; eauto.
+  + rewrite ETimesAssoc.
+    now apply solution_bound_vec.
+Qed.
+
+Ltac fold_term_lequiv :=
+  match goal with
+  | |- ?lhs <= ?rhs => fold (term_lequiv lhs rhs)
+  end
+.
+
+Lemma solution_project
+  {n: nat}
+  (sys: system (position (S n)))
+  (scale: term)
+  (sol: vector (position (S n)))
+:
+  solution sys scale sol ->
+  solution (compress_system sys) scale (# sol)
+.
+Proof.
+  split; intros; simpl;
+  rewrite EDistributeRight;
+  unfold vector_chomp.
+  - apply term_lequiv_split.
+    + apply H.
+    + fold_term_lequiv.
+      repeat rewrite <- ETimesAssoc.
+      rewrite ETimesAssoc with (t3 := sol (PThere q')).
+      erewrite solution_bound_mat; eauto.
+      apply H.
+  - apply term_lequiv_split.
+    + apply H.
+    + fold_term_lequiv.
+      repeat rewrite <- ETimesAssoc.
+      rewrite ETimesAssoc with (t3 := scale).
+      erewrite solution_bound_vec; eauto.
+      apply H.
+Qed.
+
+(*
+Lemma solution_project'
+  {n: nat}
+  (sys: system (position (S n)))
+  (scale: term)
+  (sol: vector (position (S n)))
+:
+  solution_nat sys scale sol ->
+  solution_nat (compress_system sys) scale (# sol)
+.
+Proof.
+  intros; intro p.
+  unfold vector_sum, matrix_vector_product, vector_scale.
+  rewrite <- compress_system_mat.
+  rewrite <- compress_system_vec.
+  rewrite <- vector_inner_product_distribute_left.
+  rewrite <- vector_inner_product_scale_left.
+  rewrite EPlusComm with (t1 := svec sys (PThere p)).
+  rewrite EDistributeRight.
+  rewrite EPlusAssoc.
+  rewrite <- EPlusAssoc with (t2 := # smat sys (PThere p) ** # sol).
+  rewrite EPlusComm with (t1 := # smat sys (PThere p) ** # sol).
+  rewrite EPlusAssoc.
+  rewrite <- ETimesAssoc with (t3 := scale).
+  rewrite <- EDistributeLeft.
+  rewrite <- ETimesAssoc.
+  match goal with
+  | |- ?lhs <= ?rhs => fold (term_lequiv lhs rhs)
+  end.
+  rewrite solution_bound_; auto.
+  rewrite <- inner_product_equation_2.
+  apply H.
+Qed.
+*)
+
+Lemma vector_scale_right_chomp
+  {n: nat}
+  (v: vector (position (S n)))
+  (t: term)
+:
+  (# v) ;;; t === # (v ;;; t)
+.
+Proof.
+  now intro.
+Qed.
+
+Lemma vector_inner_product_scale_right
+  {n: nat}
+  (v1 v2: vector (position n))
+  (t: term)
+:
+  (v1 ** v2) ;; t == v1 ** (v2 ;;; t)
+.
+Proof.
+  dependent induction n.
+  - autorewrite with inner_product.
+    now rewrite ETimesZeroRight.
+  - autorewrite with inner_product.
+    rewrite EDistributeRight.
+    rewrite IHn.
+    unfold vector_scale at 2; simpl.
+    rewrite vector_scale_right_chomp.
+    rewrite ETimesAssoc.
+    reflexivity.
+Qed.
+
+Lemma compute_solution_nat_least
+  {n: nat}
+  (sys: system (position n))
+  (scale: term)
+  (sol: vector (position n))
+:
+  solution_nat sys scale sol ->
+  compute_solution_nat sys ;;; scale <== sol
+.
+Proof.
+  intros.
+  dependent induction n; intro p; dependent destruction p.
+  - unfold vector_scale.
+    autorewrite with compute_solution_nat; simpl.
+    rewrite EPlusComm with (t1 := svec sys PHere).
+    fold_term_lequiv.
+    rewrite <- ETimesAssoc.
+    rewrite EDistributeRight.
+    rewrite vector_inner_product_scale_right.
+    rewrite IHn with (sol := # sol).
+    + rewrite EDistributeLeft.
+      apply term_lequiv_split.
+      * rewrite vector_inner_product_scale_left.
+        apply term_lequiv_inner_product_split; intros.
+        unfold vector_scale_left.
+        unfold vector_chomp.
+        eapply solution_bound_mat.
+        now apply solution_iff_solution_nat.
+      * rewrite ETimesAssoc.
+        apply solution_bound_vec.
+        now apply solution_iff_solution_nat.
+    + apply solution_iff_solution_nat.
+      apply solution_project.
+      now apply solution_iff_solution_nat.
+  - autorewrite with compute_solution_nat; simpl.
+    eapply term_lequiv_trans; swap 1 2.
+    apply (IHn (compress_system sys) scale (# sol)).
+    + apply solution_iff_solution_nat.
+      apply solution_project.
+      now apply solution_iff_solution_nat.
+    + unfold vector_scale.
+      autorewrite with compute_solution_nat; simpl.
+      apply term_lequiv_refl.
+Qed.
+
+Lemma compute_solution_nat_least_solution
+  {n: nat}
+  (sys: system (position n))
+  (scale: term)
+:
+  least_solution sys scale (compute_solution_nat sys ;;; scale)
 .
 Proof.
   split.
-  - apply solution_iff_solution_nat.
-    apply compute_solution_nat_solution_nat.
+  - apply solution_one_solution_nat.
+    apply solution_iff_solution_nat.
+    apply compute_solution_nat_solution_nat_one.
   - setoid_rewrite solution_iff_solution_nat.
     apply compute_solution_nat_least.
 Qed.
@@ -957,10 +1150,11 @@ Lemma solution_finite_to_nat
   {X: Type}
   `{Finite X}
   (sys: system X)
+  (scale: term)
   (v: vector X)
 :
-  solution sys v ->
-  solution (system_index sys) (vector_index v)
+  solution sys scale v ->
+  solution (system_index sys) scale (vector_index v)
 .
 Proof.
   split; intros; simpl; apply H0.
@@ -970,10 +1164,11 @@ Lemma solution_nat_to_finite
   {X: Type}
   `{Finite X}
   (sys: system (position (length finite_enum)))
+  (scale: term)
   (v: vector (position (length (finite_enum))))
 :
-  solution sys v ->
-  solution (system_lookup sys) (vector_lookup v)
+  solution sys scale v ->
+  solution (system_lookup sys) scale (vector_lookup v)
 .
 Proof.
   split; intros; simpl; apply H0.
@@ -993,8 +1188,9 @@ Lemma compute_solution_solution
   {X: Type}
   `{Finite X}
   (sys: system X)
+  (scale: term)
 :
-  solution sys (compute_solution sys)
+  solution sys scale (compute_solution sys ;;; scale)
 .
 Proof.
   split; intros.
@@ -1033,14 +1229,18 @@ Lemma compute_solution_least
   {X: Type}
   `{Finite X}
   (sys: system X)
+  (scale: term)
 :
   forall sol,
-    solution sys sol ->
-    compute_solution sys <== sol
+    solution sys scale sol ->
+    compute_solution sys ;;; scale <== sol
 .
 Proof.
-  intros.
-  unfold compute_solution.
+  intros; intro x.
+  unfold compute_solution, vector_scale.
+  replace (vector_lookup _ x ;; scale)
+    with (vector_lookup (compute_solution_nat (system_index sys) ;;; scale) x)
+    by reflexivity.
   apply vector_lequiv_adjunction.
   apply compute_solution_nat_least_solution.
   now apply solution_finite_to_nat.
@@ -1050,8 +1250,9 @@ Lemma compute_solution_least_solution
   {X: Type}
   `{Finite X}
   (sys: system X)
+  (scale: term)
 :
-  least_solution sys (compute_solution sys)
+  least_solution sys scale (compute_solution sys ;;; scale)
 .
 Proof.
   split.
@@ -1092,10 +1293,11 @@ Qed.
 Lemma least_solution_unique
   {X: Type}
   (sys: system X)
+  (scale: term)
   (v1 v2: vector X)
 :
-  least_solution sys v1 ->
-  least_solution sys v2 ->
+  least_solution sys scale v1 ->
+  least_solution sys scale v2 ->
   v1 === v2
 .
 Proof.
@@ -2000,11 +2202,11 @@ Next Obligation.
     now constructor.
 Qed.
 
-Record automaton_solution_at
+Record automaton_solution
   {Q: Type}
   (aut: automaton Q)
+  (scale: term)
   (sol: vector Q)
-  (q: Q)
 := {
   automaton_solution_move:
     forall (a: A) (q1 q2: Q),
@@ -2013,27 +2215,20 @@ Record automaton_solution_at
   automaton_solution_halt:
     forall (q: Q),
     aut_accept aut q = true ->
-    1 <= sol q;
+    scale <= sol q;
 }.
-
-Definition automaton_solution
-  {Q: Type}
-  (aut: automaton Q)
-  (sol: vector Q)
-:=
-  forall (q: Q), automaton_solution_at aut sol q
-.
 
 Record automaton_least_solution
   {Q: Type}
   (aut: automaton Q)
+  (scale: term)
   (sol: vector Q)
 := {
   automaton_least_solution_solution:
-    automaton_solution aut sol;
+    automaton_solution aut scale sol;
   automaton_least_solution_least:
     forall (sol': vector Q),
-    automaton_solution aut sol' ->
+    automaton_solution aut scale sol' ->
     sol <== sol'
 }.
 
@@ -2044,19 +2239,20 @@ Lemma automaton_homomorphism_solution
   {Q1 Q2: Type}
   (aut1: automaton Q1)
   (aut2: automaton Q2)
+  (scale: term)
   (sol: vector Q2)
   (h: automaton_homomorphism aut1 aut2)
 :
-  automaton_solution aut2 sol ->
-  automaton_solution aut1 (sol ∘ h)
+  automaton_solution aut2 scale sol ->
+  automaton_solution aut1 scale (sol ∘ h)
 .
 Proof.
   split; intros.
   - unfold compose; simpl.
-    apply (H0 (h q1)) with (q1 := h q1).
+    apply H0 with (q1 := h q1).
     now apply h.
   - unfold compose; simpl.
-    apply (H0 (h q0)).
+    apply H0.
     now apply h.
 Qed.
 
@@ -2064,12 +2260,13 @@ Lemma automaton_homomorphism_least_solution
   {Q1 Q2: Type}
   (aut1: automaton Q1)
   (aut2: automaton Q2)
+  (scale: term)
   (sol1: vector Q1)
   (sol2: vector Q2)
   (h: automaton_homomorphism aut1 aut2)
 :
-  automaton_least_solution aut1 sol1 ->
-  automaton_least_solution aut2 sol2 ->
+  automaton_least_solution aut1 scale sol1 ->
+  automaton_least_solution aut2 scale sol2 ->
   sol1 <== sol2 ∘ h
 .
 Proof.
@@ -2131,10 +2328,11 @@ Qed.
 Lemma system_solution_to_automaton_solution
   {Q: Type}
   (aut: automaton Q)
+  (scale: term)
   (sol: vector Q)
 :
-  solution (automaton_to_system aut) sol ->
-  automaton_solution aut sol
+  solution (automaton_to_system aut) scale sol ->
+  automaton_solution aut scale sol
 .
 Proof.
   intros.
@@ -2154,8 +2352,9 @@ Proof.
       apply filter_In.
       split; auto.
       apply finite_cover.
-  - enough (svec (automaton_to_system aut) q0 == 1).
-    + rewrite <- H2.
+  - enough (svec (automaton_to_system aut) q == 1).
+    + rewrite <- ETimesUnitLeft with (t := scale).
+      rewrite <- H2.
       apply H0.
     + simpl.
       now rewrite H1.
@@ -2164,10 +2363,11 @@ Qed.
 Lemma automaton_solution_to_system_solution
   {Q: Type}
   (aut: automaton Q)
+  (scale: term)
   (sol: vector Q)
 :
-  automaton_solution aut sol ->
-  solution (automaton_to_system aut) sol
+  automaton_solution aut scale sol ->
+  solution (automaton_to_system aut) scale sol
 .
 Proof.
   intros.
@@ -2181,12 +2381,14 @@ Proof.
     subst.
     apply filter_In in H2.
     destruct H2 as [_ ?].
-    apply (H0 q).
+    apply H0.
     apply H1.
   - simpl.
     destruct (aut_accept aut q) eqn:?.
-    + now apply (H0 q).
-    + apply term_lequiv_zero.
+    + rewrite ETimesUnitLeft.
+      now apply H0.
+    + rewrite ETimesZeroRight.
+      apply term_lequiv_zero.
 Qed.
 
 Definition compute_automaton_solution
@@ -2203,8 +2405,9 @@ Lemma compute_automaton_solution_least_solution
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
+  (scale: term)
 :
-  automaton_least_solution aut (compute_automaton_solution aut)
+  automaton_least_solution aut scale (compute_automaton_solution aut ;;; scale)
 .
 Proof.
   split; intros.
@@ -2272,6 +2475,8 @@ Lemma antimirov_solution_upper_bound (t: term):
 .
 Proof.
   unfold antimirov_solution.
+  intro d.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
   apply compute_automaton_solution_least_solution.
   split; intros.
   - simpl in H0.
@@ -2313,33 +2518,8 @@ Proof.
         -- now apply nullable_one.
         -- now rewrite <- ETimesUnitLeft with (t := t*) at 1.
   - simpl in H0.
-    apply nullable_dec in H0.
-    dependent induction t;
-    dependent destruction q0;
-    dependent destruction H0;
-    autorewrite with derivative_write.
-    + apply term_lequiv_refl.
-    + apply term_lequiv_refl.
-    + now apply IHt1.
-    + now apply IHt2.
-    + rewrite <- ETimesUnitRight with (t := 1).
-      apply times_mor_mono.
-      * now apply IHt1.
-      * eapply term_lequiv_trans.
-        -- apply nullable_one.
-           apply H0_0.
-        -- now apply initial_cover.
-    + now apply nullable_one.
-    + rewrite <- ETimesUnitRight with (t := 1).
-      apply times_mor_mono.
-      * now apply nullable_one.
-      * unfold term_lequiv.
-        eapply term_lequiv_trans.
-        -- apply term_lequiv_split_right.
-           apply term_lequiv_refl.
-        -- rewrite <- EStarLeft.
-           apply term_lequiv_refl.
-    + apply term_lequiv_refl.
+    apply nullable_one.
+    now apply nullable_dec.
 Qed.
 
  Lemma term_roundtrip_upper_bound (t: term):
@@ -2357,6 +2537,59 @@ Proof.
     now apply initial_list.
 Qed.
 
+Lemma automaton_solution_invariant
+  {Q: Type}
+  (aut: automaton Q)
+  (scale: term)
+  (sol: vector Q)
+:
+  automaton_solution aut scale sol <->
+  automaton_solution aut scale (sol ;;; 1)
+.
+Proof.
+  split; intros.
+  - split; intros.
+    + unfold vector_scale.
+      repeat rewrite ETimesUnitRight.
+      now apply H0.
+    + unfold vector_scale.
+      rewrite ETimesUnitRight.
+      now apply H0.
+  - split; intros.
+    + unfold vector_scale.
+      rewrite <- ETimesUnitRight with (t := sol q2).
+      rewrite <- ETimesUnitRight with (t := sol q1).
+      now apply H0.
+    + unfold vector_scale.
+      rewrite <- ETimesUnitRight with (t := sol q).
+      now apply H0.
+Qed.
+
+Lemma automaton_least_solution_invariant
+  {Q: Type}
+  (aut: automaton Q)
+  (scale: term)
+  (sol: vector Q)
+:
+  automaton_least_solution aut scale sol <->
+  automaton_least_solution aut scale (sol ;;; 1)
+.
+Proof.
+  split; intros.
+  - split; intros.
+    + rewrite <- automaton_solution_invariant.
+      apply H0.
+    + intro q; unfold vector_scale.
+      rewrite ETimesUnitRight.
+      now apply H0.
+  - split; intros.
+    + rewrite automaton_solution_invariant.
+      apply H0.
+    + intro q.
+      rewrite <- ETimesUnitRight with (t := sol q).
+      now apply H0.
+Qed.
+
 Lemma antimirov_solution_homomorphism
   (t1 t2: term)
   (h: automaton_homomorphism (automaton_antimirov t1) (automaton_antimirov t2))
@@ -2365,8 +2598,11 @@ Lemma antimirov_solution_homomorphism
 .
 Proof.
   unfold antimirov_solution.
+  intro.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
   apply compute_automaton_solution_least_solution.
   apply automaton_homomorphism_solution.
+  apply automaton_solution_invariant.
   apply compute_automaton_solution_least_solution.
 Qed.
 
@@ -2430,12 +2666,15 @@ Proof.
       replace (antimirov_solution t d)
         with (translate_unit_right (antimirov_solution t) (TTimesPre _ d))
         by reflexivity.
+      rewrite <- ETimesUnitRight with (t := antimirov_solution _ _).
       apply compute_automaton_solution_least_solution.
       split; intros.
       * simpl in H0.
         apply derive_dec in H0.
         dependent destruction H0.
         -- autorewrite with translate_unit_right.
+           rewrite <- ETimesUnitRight with (t := antimirov_solution t d12).
+           rewrite <- ETimesUnitRight with (t := antimirov_solution t d11).
            apply compute_automaton_solution_least_solution; auto.
            simpl; now apply derive_dec.
         -- dependent destruction H2.
@@ -2444,6 +2683,7 @@ Proof.
         apply nullable_dec in H0.
         dependent destruction H0.
         -- autorewrite with translate_unit_right.
+           rewrite <- ETimesUnitRight with (t := antimirov_solution t d1).
            apply compute_automaton_solution_least_solution; auto.
            simpl; now apply nullable_dec.
         -- dependent destruction d2.
@@ -2579,12 +2819,13 @@ Definition automaton_perturb
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
+  (scale: term)
   (s: vector Q)
   (q: Q)
 :
   term
 :=
-  (if aut_accept aut q then 1 else 0) +
+  (if aut_accept aut q then scale else 0) +
   sum (map (fun q' =>
       sum (map (fun a =>
           if aut_transitions aut a q q'
@@ -2597,10 +2838,11 @@ Lemma automaton_perturb_mono
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
+  (scale: term)
   (s1 s2: vector Q)
 :
   s1 <== s2 ->
-  automaton_perturb aut s1 <== automaton_perturb aut s2
+  automaton_perturb aut scale s1 <== automaton_perturb aut scale s2
 .
 Proof.
   intros; intro q.
@@ -2637,14 +2879,16 @@ Lemma automaton_solution_perturb
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
+  (scale: term)
   (sol: vector Q)
 :
-  automaton_solution aut sol <->
-  automaton_perturb aut sol <== sol
+  automaton_solution aut scale sol <->
+  automaton_perturb aut scale sol <== sol
 .
 Proof.
   split; intros.
   - intro q.
+    unfold vector_scale.
     unfold automaton_perturb.
     apply term_lequiv_split.
     + destruct (aut_accept aut q) eqn:?.
@@ -2660,7 +2904,7 @@ Proof.
       * now apply H1.
       * apply term_lequiv_zero.
   - split; intros.
-    + apply term_lequiv_trans with (t2 := automaton_perturb aut sol q1).
+    + apply term_lequiv_trans with (t2 := automaton_perturb aut scale sol q1).
       * unfold automaton_perturb.
         apply term_lequiv_split_right.
         eapply term_lequiv_trans; swap 1 2.
@@ -2675,7 +2919,7 @@ Proof.
            split; auto.
            apply finite_cover.
       * apply H1.
-    + eapply term_lequiv_trans with (t2 := automaton_perturb aut sol q0).
+    + eapply term_lequiv_trans with (t2 := automaton_perturb aut scale sol q).
       * unfold automaton_perturb.
         apply term_lequiv_split_left.
         rewrite H2.
@@ -2687,10 +2931,11 @@ Lemma automaton_solution_iterate
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
+  (scale: term)
   (sol: vector Q)
 :
-  automaton_solution aut sol ->
-  automaton_solution aut (automaton_perturb aut sol)
+  automaton_solution aut scale sol ->
+  automaton_solution aut scale (automaton_perturb aut scale sol)
 .
 Proof.
   intros.
@@ -2703,11 +2948,12 @@ Lemma automaton_solution_least_converse
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
+  (scale: term)
   (sol: vector Q)
   (q: Q)
 :
-  automaton_least_solution aut sol ->
-  sol q == automaton_perturb aut sol q
+  automaton_least_solution aut scale sol ->
+  sol q == automaton_perturb aut scale sol q
 .
 Proof.
   intros.
@@ -2733,10 +2979,12 @@ Proof.
   intros.
   rewrite automaton_solution_least_converse
     with (aut := automaton_antimirov (t1 ;; t2))
-    by (apply compute_automaton_solution_least_solution).
+  by (apply automaton_least_solution_invariant;
+      apply compute_automaton_solution_least_solution).
   rewrite automaton_solution_least_converse
     with (aut := automaton_antimirov (t1 ;; t2)) (q := (TTimesPre t2 d1))
-    by (apply compute_automaton_solution_least_solution).
+    by (apply automaton_least_solution_invariant;
+        apply compute_automaton_solution_least_solution).
   apply term_lequiv_split.
   - apply term_lequiv_split_left.
     simpl.
@@ -2842,11 +3090,13 @@ Proof.
       * apply antimirov_solution_link.
         -- constructor.
         -- now apply initial_list.
-  - apply compute_automaton_solution_least_solution.
-    + exact (TTimesPost _ d).
-    + simpl.
-      apply derive_dec.
-      now repeat constructor.
+  - rewrite <- ETimesUnitRight
+      with (t := antimirov_solution _ (TTimesPre _ TLetterOne)).
+    rewrite <- ETimesUnitRight
+      with (t := antimirov_solution _ (TTimesPre _ (TLetterLetter _))).
+    apply compute_automaton_solution_least_solution; simpl.
+    apply derive_dec.
+    now repeat constructor.
 Qed.
 
 Equations term_homomorphism_fold_f
@@ -3016,7 +3266,8 @@ Proof.
   intros.
   unfold term_roundtrip.
   apply term_lequiv_trans with (t2 := antimirov_solution t d).
-  - apply compute_automaton_solution_least_solution; auto.
+  - rewrite <- ETimesUnitRight with (t := antimirov_solution t d).
+    apply compute_automaton_solution_least_solution; auto.
     now apply nullable_dec.
   - apply sum_lequiv_member.
     apply in_map_iff.
@@ -3094,11 +3345,11 @@ Proof.
   unfold term_roundtrip.
   eapply term_lequiv_trans with (t2 := antimirov_solution 1 TOneOne).
   - unfold antimirov_solution.
+    rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
     apply compute_automaton_solution_least_solution.
-    + apply TOneOne.
-    + simpl.
-      apply nullable_dec.
-      constructor.
+    simpl.
+    apply nullable_dec.
+    constructor.
   - apply sum_lequiv_member.
     apply in_map_iff.
     eexists; split; auto.
@@ -3871,7 +4122,7 @@ Lemma term_matches_automaton_perturb_nil
   (sol: vector Q)
   (q: Q)
 :
-  term_matches (automaton_perturb aut sol q) nil <->
+  term_matches (automaton_perturb aut 1 sol q) nil <->
   aut_accept aut q = true
 .
 Proof.
@@ -3908,7 +4159,7 @@ Lemma term_matches_automaton_perturb_cons
   (a: A)
   (w: list A)
 :
-  term_matches (automaton_perturb aut sol q) (a :: w) <->
+  term_matches (automaton_perturb aut 1 sol q) (a :: w) <->
   exists (q': Q),
     aut_transitions aut a q q' = true /\
     term_matches (sol q') w
@@ -3961,14 +4212,14 @@ Lemma automaton_least_solution_match
   (q: Q)
   (w: list A)
 :
-  automaton_least_solution aut sol ->
+  automaton_least_solution aut 1 sol ->
   term_matches (sol q) w <->
   automaton_accepts aut q w
 .
 Proof.
   intro; revert q; induction w; intros;
   rewrite term_equiv_sound
-    with (t2 := automaton_perturb aut sol q)
+    with (t2 := automaton_perturb aut 1 sol q)
     by (now apply automaton_solution_least_converse).
   - rewrite term_matches_automaton_perturb_nil.
     split; intros.
@@ -4041,7 +4292,8 @@ Proof.
   simpl.
   rewrite automaton_least_solution_match
     with (aut := automaton_transition_monad aut final)
-    by (apply compute_automaton_solution_least_solution).
+    by (apply automaton_least_solution_invariant;
+        apply compute_automaton_solution_least_solution).
   apply automaton_transition_monad_accepts.
 Qed.
 
@@ -4166,8 +4418,8 @@ Lemma automaton_transition_monad_solution_transpose
   (aut: automaton Q)
   (sols: matrix (Q -> Q -> bool))
 :
-  (forall m, automaton_solution (automaton_transition_monad aut m) (sols m)) ->
-  automaton_solution aut (fun q =>
+  (forall m, automaton_solution (automaton_transition_monad aut m) 1 (sols m)) ->
+  automaton_solution aut 1 (fun q =>
     sum (map (fun m => sols m finite_eqb)
              (automaton_accepting_matrices aut q)
     )
@@ -4188,7 +4440,7 @@ Proof.
     apply term_lequiv_refl.
     admit.
   - apply term_lequiv_trans with (t2 := sols finite_eqb finite_eqb).
-    + apply (H1 finite_eqb finite_eqb); simpl.
+    + apply (H1 finite_eqb); simpl.
       now rewrite finite_eqb_eq.
     + apply sum_lequiv_member.
       apply in_map_iff.
@@ -4200,7 +4452,7 @@ Proof.
       * unfold vector_inner_product_bool.
         apply disj_true.
         apply in_map_iff.
-        exists q0.
+        exists q.
         split.
         apply Bool.andb_true_iff.
         split; auto.
