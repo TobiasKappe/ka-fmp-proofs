@@ -4634,7 +4634,7 @@ Proof.
   intuition.
 Qed.
 
-Lemma automaton_transition_monad_solution_transpose
+Lemma automaton_sum_accepting_matrices_lower
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
@@ -4926,6 +4926,17 @@ Proof.
   - now setoid_rewrite finite_eqb_eq.
 Qed.
 
+Definition automaton_relation_solution'
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (m: Q -> Q -> bool)
+:
+  term
+:=
+    compute_automaton_solution (automaton_transition_monad aut m) finite_eqb
+.
+
 Lemma automaton_relation_solution_characterise
   {Q: Type}
   `{Finite Q}
@@ -4933,10 +4944,12 @@ Lemma automaton_relation_solution_characterise
   (m: Q -> Q -> bool)
 :
   automaton_relation_solution aut m ==
-  compute_automaton_solution (automaton_transition_monad aut m) finite_eqb
+  automaton_relation_solution' aut m
 .
 Proof.
-  unfold automaton_relation_solution, automaton_relation_solution_path.
+  unfold automaton_relation_solution,
+         automaton_relation_solution_path,
+         automaton_relation_solution'.
   rewrite automaton_lift_solution_characterise
     with (aut := automaton_transition_monad aut m).
   unfold automaton_lift_sum_accepting_paths.
@@ -4945,4 +4958,112 @@ Proof.
   rewrite EPlusUnit.
   unfold curry; simpl.
   now rewrite automaton_lift_transition_monad_discard_accept with (m2 := m).
+Qed.
+
+Definition automaton_sum_reached_paths
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (q: Q)
+  (m: Q -> Q -> bool)
+:
+  term
+:=
+  sum (map (compute_automaton_solution aut) (filter (m q) finite_enum))
+.
+
+Lemma automaton_transition_monad_solution_upper
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (q q': Q)
+  (m m': Q -> Q -> bool)
+:
+  m q q' = true ->
+  aut_accept aut q' = true ->
+  compute_automaton_solution (automaton_transition_monad aut m) m' <=
+  automaton_sum_reached_paths aut q m'
+.
+Proof.
+  intros.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
+  apply compute_automaton_solution_least_solution.
+  clear m'.
+  split.
+  - intros a m1 m2 ?; unfold automaton_sum_reached_paths.
+    rewrite <- sum_distribute_left.
+    rewrite map_map.
+    apply sum_lequiv_all; intros.
+    apply in_map_iff in H4.
+    destruct H4 as [q'' [? ?]]; subst.
+    apply filter_In in H5.
+    destruct H5 as [_ ?].
+    apply finite_eqb_eq in H3; subst.
+    apply matrix_product_characterise in H4.
+    destruct H4 as [q3 [? ?]].
+    apply term_lequiv_trans with (t2 := compute_automaton_solution aut q3).
+    + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut q'').
+      rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut q3).
+      now apply compute_automaton_solution_least_solution.
+    + apply sum_lequiv_member.
+      apply in_map_iff.
+      exists q3; intuition.
+      apply filter_In; intuition.
+  - intros m' ?; unfold automaton_sum_reached_paths.
+    simpl in H3.
+    apply finite_eqb_eq in H3; subst.
+    apply term_lequiv_trans with (t2 := compute_automaton_solution aut q').
+    + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut q').
+      now apply compute_automaton_solution_least_solution.
+    + apply sum_lequiv_member.
+      apply in_map_iff.
+      exists q'; intuition.
+      apply filter_In; intuition.
+Qed.
+
+Lemma automaton_sum_accepting_matrices_upper
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+:
+  automaton_sum_accepting_matrices aut <== compute_automaton_solution aut
+.
+Proof.
+  intro q.
+  unfold automaton_sum_accepting_matrices.
+  apply sum_lequiv_all; intros.
+  apply in_map_iff in H1.
+  destruct H1 as [m [? ?]]; subst.
+  unfold automaton_accepting_matrices in H2.
+  apply filter_In in H2.
+  destruct H2 as [_ ?].
+  apply disj_true in H1.
+  apply in_map_iff in H1.
+  destruct H1 as [q' [? _]].
+  apply Bool.andb_true_iff in H1.
+  destruct H1 as [? ?].
+  rewrite automaton_relation_solution_characterise.
+  eapply term_lequiv_trans.
+  apply automaton_transition_monad_solution_upper with (q := q) (q' := q'); auto.
+  unfold automaton_sum_reached_paths.
+  apply sum_lequiv_all; intros.
+  apply in_map_iff in H3.
+  destruct H3 as [q'' [? ?]]; subst.
+  apply filter_In in H4.
+  destruct H4 as [_ ?].
+  apply finite_eqb_eq in H3; subst.
+  apply term_lequiv_refl.
+Qed.
+
+Lemma automaton_sum_accepting_matrices_characterise
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+:
+  automaton_sum_accepting_matrices aut === compute_automaton_solution aut
+.
+Proof.
+  apply vector_lequiv_squeeze.
+  - apply automaton_sum_accepting_matrices_upper.
+  - apply automaton_sum_accepting_matrices_lower.
 Qed.
