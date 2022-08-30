@@ -5067,3 +5067,72 @@ Proof.
   - apply automaton_sum_accepting_matrices_upper.
   - apply automaton_sum_accepting_matrices_lower.
 Qed.
+
+Inductive HasDup {X: Type}: list X -> Prop :=
+| HasDupBase:
+    forall (x: X) (l: list X),
+    In x l ->
+    HasDup (x :: l)
+| HasDupStep:
+    forall (x: X) (l: list X),
+    HasDup l ->
+    HasDup (x :: l)
+.
+
+Lemma NoDup_HasDup
+  {X: Type}
+  `{Finite X}
+  (l: list X)
+:
+  NoDup l \/ HasDup l
+.
+Proof.
+  induction l.
+  - left; constructor.
+  - destruct IHl.
+    + destruct (In_dec finite_dec a l).
+      * right; now constructor.
+      * left; now constructor.
+    + right; now constructor.
+Qed.
+
+Lemma HasDup_exists
+  {X: Type}
+  (l: list X)
+:
+  HasDup l ->
+  exists (l1 l2 l3: list X) (x: X),
+    l = l1 ++ (x :: nil) ++ l2 ++ (x :: nil) ++ l3
+.
+Proof.
+  intros.
+  induction H0.
+  - apply in_split in H0.
+    destruct H0 as [l2 [l3 ?]].
+    exists nil, l2, l3, x.
+    simpl; now f_equal.
+  - destruct IHHasDup as [l1 [l2 [l3 [x' ?]]]].
+    exists (x :: l1), l2, l3, x'.
+    simpl; now f_equal.
+Qed.
+
+Require Import Coq.micromega.Lia.
+
+Lemma pigeonhole_principle
+  {X: Type}
+  `{Finite X}
+  (l: list X)
+:
+  length l > length finite_enum ->
+  exists (l1 l2 l3: list X) (x: X),
+    l = l1 ++ (x :: nil) ++ l2 ++ (x :: nil) ++ l3
+.
+Proof.
+  intros.
+  destruct (NoDup_HasDup l).
+  - apply NoDup_incl_length with (l' := finite_enum) in H2.
+    + lia.
+    + intro x; intros.
+      apply finite_cover.
+  - now apply HasDup_exists.
+Qed.
