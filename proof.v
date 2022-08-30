@@ -5136,3 +5136,26 @@ Proof.
       apply finite_cover.
   - now apply HasDup_exists.
 Qed.
+
+Fixpoint iterate
+  {X: Type}
+  (f: X -> X)
+  (n: nat)
+  (x: X)
+:=
+  match n with
+  | 0%nat => x
+  | S n => iterate f n (f x)
+  end
+.
+
+Definition mono_fixpoint
+  {X: Type}
+  `{Finite X}
+  (f: X -> X)
+  (zero: X)
+:
+  X
+:=
+  iterate f (length finite_enum) zero
+.
