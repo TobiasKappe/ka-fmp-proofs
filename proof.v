@@ -5140,22 +5140,293 @@ Qed.
 Fixpoint iterate
   {X: Type}
   (f: X -> X)
-  (n: nat)
   (x: X)
+  (n: nat)
 :=
   match n with
   | 0%nat => x
-  | S n => iterate f n (f x)
+  | S n => f (iterate f x n)
   end
 .
+
+Class PartialOrderZero (X: Type) := {
+  partial_order_rel :> X -> X -> Prop;
+  partial_order_refl:
+    forall (x1 x2: X),
+    partial_order_rel x1 x2;
+  partial_order_trans:
+    forall (x1 x2 x3: X),
+    partial_order_rel x1 x2 ->
+    partial_order_rel x2 x3 ->
+    partial_order_rel x1 x3;
+  partial_order_antisym:
+    forall (x1 x2: X),
+    partial_order_rel x1 x2 ->
+    partial_order_rel x2 x1 ->
+    x1 = x2;
+  partial_order_zero: X;
+  partial_order_bottom:
+    forall (x: X),
+    partial_order_rel partial_order_zero x;
+}.
 
 Definition mono_fixpoint
   {X: Type}
   `{Finite X}
+  `{PartialOrderZero X}
   (f: X -> X)
-  (zero: X)
 :
   X
 :=
-  iterate f (length finite_enum) zero
+  iterate f partial_order_zero (length finite_enum)
 .
+
+Lemma map_app_lift {X Y: Type} (f: X -> Y) (lx: list X) (ly1 ly2: list Y):
+  map f lx = ly1 ++ ly2 ->
+  exists (lx1 lx2: list X),
+    lx = lx1 ++ lx2 /\
+    map f lx1 = ly1 /\
+    map f lx2 = ly2
+.
+Proof.
+  intros; revert lx H0; induction ly1; intros.
+  - rewrite app_nil_l in H0.
+    exists nil, lx.
+    intuition.
+  - destruct lx; simpl in H0.
+    + discriminate.
+    + inversion H0; subst.
+      apply IHly1 in H3.
+      destruct H3 as [lx1 [lx2 [? [? ?]]]].
+      exists (x :: lx1), lx2; simpl.
+      intuition congruence.
+Qed.
+
+Record monotone
+  {X Y: Type}
+  `{PartialOrderZero X}
+  `{PartialOrderZero Y}
+  (f: X -> Y)
+:= {
+  monotone_bottom:
+    f partial_order_zero = partial_order_zero;
+  monotone_preserve:
+    forall (x1 x2: X),
+      partial_order_rel x1 x2 ->
+      partial_order_rel (f x1) (f x2);
+}.
+
+Lemma iterate_order
+  {X: Type}
+  `{PartialOrderZero X}
+  (f: X -> X)
+  (n: nat)
+:
+  monotone f ->
+  partial_order_rel (iterate f partial_order_zero n)
+                    (f (iterate f partial_order_zero n))
+.
+Proof.
+  intros.
+  induction n; simpl.
+  - apply partial_order_bottom.
+  - now apply monotone_preserve.
+Qed.
+
+Lemma iterate_mono
+  {X: Type}
+  `{PartialOrderZero X}
+  (f: X -> X)
+  (n m: nat)
+:
+  monotone f ->
+  (n <= m)%nat ->
+  partial_order_rel (iterate f partial_order_zero n)
+                    (iterate f partial_order_zero m)
+.
+Proof.
+  intros.
+  apply PeanoNat.Nat.le_exists_sub in H2.
+  destruct H2 as [k [? _]]; subst.
+  induction k; simpl.
+  - apply partial_order_refl.
+  - eapply partial_order_trans.
+    + now apply iterate_order.
+    + now apply monotone_preserve.
+Qed.
+
+Lemma iterate_repeat
+  {X: Type}
+  `{PartialOrderZero X}
+  (f: X -> X)
+  (n m: nat)
+:
+  n < m ->
+  monotone f ->
+  iterate f partial_order_zero n = iterate f partial_order_zero m ->
+  f (iterate f partial_order_zero m) = iterate f partial_order_zero m
+.
+Proof.
+  intros.
+  rewrite <- H3.
+  apply partial_order_antisym.
+  - rewrite H3 at 2.
+    replace (f (iterate f partial_order_zero n))
+      with (iterate f partial_order_zero (S n))
+      by reflexivity.
+    now apply iterate_mono.
+  - now apply iterate_order.
+Qed.
+
+Lemma iterate_beyond
+  {X: Type}
+  `{PartialOrderZero X}
+  (f: X -> X)
+  (n m: nat)
+:
+  (n <= m)%nat ->
+  monotone f ->
+  iterate f partial_order_zero n = f (iterate f partial_order_zero n) ->
+  iterate f partial_order_zero m = iterate f partial_order_zero n
+.
+Proof.
+  intros.
+  apply PeanoNat.Nat.le_exists_sub in H1.
+  destruct H1 as [k [? _]]; subst.
+  induction k; simpl; congruence.
+Qed.
+
+Lemma iterate_fixed
+  {X: Type}
+  `{PartialOrderZero X}
+  (f: X -> X)
+  (n m: nat)
+:
+  (n <= m)%nat ->
+  monotone f ->
+  iterate f partial_order_zero n = f (iterate f partial_order_zero n) ->
+  f (iterate f partial_order_zero m) = iterate f partial_order_zero m
+.
+Proof.
+  intros.
+  replace (f (iterate f partial_order_zero m))
+    with (iterate f partial_order_zero (S m))
+    by reflexivity.
+  rewrite iterate_beyond with (n := n); auto.
+  now rewrite iterate_beyond with (n := n) (m := m).
+Qed.
+
+Lemma seq_last
+  (n m: nat)
+  (l: list nat)
+:
+  seq 0 n = l ++ m :: nil ->
+  l = seq 0 (n-1 ) /\ m = n - 1
+.
+Proof.
+  revert l m; induction n; intros.
+  - simpl in H0.
+    apply (f_equal (@rev nat)) in H0.
+    rewrite rev_app_distr in H0; simpl in H0.
+    discriminate.
+  - rewrite seq_S in H0.
+    apply (f_equal (@rev nat)) in H0.
+    repeat rewrite rev_app_distr in H0.
+    inversion H0; clear H0.
+    apply (f_equal (@rev nat)) in H3.
+    repeat rewrite rev_involutive in H3; subst.
+    intuition (f_equal; lia).
+Qed.
+
+Lemma seq_order
+  (len: nat)
+  (l1 l2: list nat)
+  (n m: nat)
+:
+  seq 0 len = l1 ++ l2 ->
+  In n l1 ->
+  In m l2 ->
+  n < m
+.
+Proof.
+  revert len; induction l2 using rev_ind; intros.
+  - destruct H2.
+  - rewrite app_assoc in H0.
+    apply seq_last in H0.
+    destruct H0; subst.
+    apply in_app_iff in H2.
+    destruct H2.
+    + eapply IHl2; auto.
+      now rewrite H0.
+    + destruct H2; intuition; subst.
+      assert (In n (l1 ++ l2)) by (apply in_app_iff; now left).
+      rewrite H0 in H2.
+      rewrite in_seq in H2.
+      lia.
+Qed.
+
+Lemma mono_fixpoint_fixpoint
+  {X: Type}
+  `{Finite X}
+  `{PartialOrderZero X}
+  (f: X -> X)
+:
+  monotone f ->
+  f (mono_fixpoint f) = mono_fixpoint f
+.
+Proof.
+  pose (points := map (iterate f partial_order_zero)
+                      (seq 0 (S (length finite_enum)))).
+  destruct (pigeonhole_principle points) as [l1 [l2 [l3 [p ?]]]].
+  - subst points.
+    rewrite map_length, seq_length.
+    lia.
+  - apply map_app_lift in H2.
+    destruct H2 as [ln1 [lnt1 [? [? ?]]]]; subst.
+    apply map_app_lift in H4.
+    destruct H4 as [ln2 [lnt2 [? [? ?]]]]; subst.
+    apply map_app_lift in H5.
+    destruct H5 as [ln3 [lnt3 [? [? ?]]]]; subst.
+    apply map_app_lift in H6.
+    destruct H6 as [ln4 [ln5 [? [? ?]]]]; subst.
+    destruct ln2; simpl in H4; [discriminate | inversion H4; clear H4 ].
+    destruct ln4; simpl in H5; [discriminate | inversion H5; clear H5 ].
+    apply map_eq_nil in H7, H8; subst.
+    intros; unfold mono_fixpoint.
+    apply iterate_fixed with (n := n); auto.
+    + assert (In n (seq 0 (S (length finite_enum)))).
+      * rewrite H2.
+        rewrite in_app_iff; right; now left.
+      * apply in_seq in H5; now lia.
+    + rewrite <- H4; symmetry.
+      eapply iterate_repeat with (n := n); auto.
+      eapply seq_order.
+      * rewrite <- app_assoc.
+        apply H2.
+      * rewrite in_app_iff; right; now left.
+      * rewrite in_app_iff; right; now left.
+Qed.
+
+Lemma mono_fixpoint_least
+  {X: Type}
+  `{Finite X}
+  `{PartialOrderZero X}
+  (f: X -> X)
+  (x: X)
+:
+  monotone f ->
+  f x = x ->
+  partial_order_rel (mono_fixpoint f) x
+.
+Proof.
+  intros.
+  unfold mono_fixpoint.
+  generalize (length (finite_enum)); intros.
+  induction n; simpl.
+  - apply partial_order_bottom.
+  - eapply partial_order_trans.
+    + apply monotone_preserve; auto.
+      apply partial_order_refl.
+    + rewrite H3.
+      apply partial_order_refl.
+Qed.
