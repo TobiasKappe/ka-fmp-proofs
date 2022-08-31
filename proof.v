@@ -5152,8 +5152,8 @@ Fixpoint iterate
 Class PartialOrderZero (X: Type) := {
   partial_order_rel :> X -> X -> Prop;
   partial_order_refl:
-    forall (x1 x2: X),
-    partial_order_rel x1 x2;
+    forall (x1: X),
+    partial_order_rel x1 x1;
   partial_order_trans:
     forall (x1 x2 x3: X),
     partial_order_rel x1 x2 ->
@@ -5316,26 +5316,44 @@ Proof.
   now rewrite iterate_beyond with (n := n) (m := m).
 Qed.
 
-Lemma seq_last
-  (n m: nat)
-  (l: list nat)
+Lemma app_match_left
+  {X: Type}
+  (l1 l2 l3 l4: list X)
 :
-  seq 0 n = l ++ m :: nil ->
-  l = seq 0 (n-1 ) /\ m = n - 1
+  length l1 = length l3 ->
+  l1 ++ l2 = l3 ++ l4 ->
+  l1 = l3
 .
 Proof.
-  revert l m; induction n; intros.
-  - simpl in H0.
-    apply (f_equal (@rev nat)) in H0.
-    rewrite rev_app_distr in H0; simpl in H0.
-    discriminate.
-  - rewrite seq_S in H0.
-    apply (f_equal (@rev nat)) in H0.
-    repeat rewrite rev_app_distr in H0.
-    inversion H0; clear H0.
-    apply (f_equal (@rev nat)) in H3.
-    repeat rewrite rev_involutive in H3; subst.
-    intuition (f_equal; lia).
+  intros.
+  apply (f_equal (firstn (length l1))) in H1.
+  repeat rewrite firstn_app in H1.
+  replace (length l1 - length l1) with 0%nat in H1 by lia.
+  replace (length l1 - length l3) with 0%nat in H1 by lia.
+  repeat rewrite firstn_O in H1.
+  repeat rewrite app_nil_r in H1.
+  rewrite H0 in H1 at 2.
+  now repeat rewrite firstn_all in H1.
+Qed.
+
+Lemma app_match_right
+  {X: Type}
+  (l1 l2 l3 l4: list X)
+:
+  length l1 = length l3 ->
+  l1 ++ l2 = l3 ++ l4 ->
+  l2 = l4
+.
+Proof.
+  intros.
+  apply (f_equal (skipn (length l1))) in H1.
+  repeat rewrite skipn_app in H1.
+  replace (length l1 - length l1) with 0%nat in H1 by lia.
+  replace (length l1 - length l3) with 0%nat in H1 by lia.
+  rewrite H0 in H1 at 2.
+  repeat rewrite skipn_all in H1.
+  repeat rewrite skipn_O in H1.
+  now repeat rewrite app_nil_l in H1.
 Qed.
 
 Lemma seq_order
@@ -5349,20 +5367,21 @@ Lemma seq_order
   n < m
 .
 Proof.
-  revert len; induction l2 using rev_ind; intros.
-  - destruct H2.
-  - rewrite app_assoc in H0.
-    apply seq_last in H0.
-    destruct H0; subst.
-    apply in_app_iff in H2.
-    destruct H2.
-    + eapply IHl2; auto.
-      now rewrite H0.
-    + destruct H2; intuition; subst.
-      assert (In n (l1 ++ l2)) by (apply in_app_iff; now left).
-      rewrite H0 in H2.
-      rewrite in_seq in H2.
-      lia.
+  intros; assert (len = length l1 + length l2)%nat.
+  - rewrite <- app_length.
+    erewrite <- seq_length at 1.
+    now rewrite H0.
+  - subst.
+    rewrite seq_app in H0; simpl in H0.
+    erewrite <- app_match_left
+      with (l1 := seq 0 (length l1)) in H1.
+    erewrite <- app_match_right
+      with (l2 := seq (length l1) (length l2)) in H2.
+    + apply in_seq in H1, H2; lia.
+    + now rewrite seq_length.
+    + apply H0.
+    + now rewrite seq_length.
+    + apply H0.
 Qed.
 
 Lemma mono_fixpoint_fixpoint
@@ -5381,24 +5400,25 @@ Proof.
   - subst points.
     rewrite map_length, seq_length.
     lia.
-  - apply map_app_lift in H2.
+  - intuition.
+    apply map_app_lift in H2.
     destruct H2 as [ln1 [lnt1 [? [? ?]]]]; subst.
-    apply map_app_lift in H4.
-    destruct H4 as [ln2 [lnt2 [? [? ?]]]]; subst.
     apply map_app_lift in H5.
-    destruct H5 as [ln3 [lnt3 [? [? ?]]]]; subst.
+    destruct H5 as [ln2 [lnt2 [? [? ?]]]]; subst.
     apply map_app_lift in H6.
-    destruct H6 as [ln4 [ln5 [? [? ?]]]]; subst.
-    destruct ln2; simpl in H4; [discriminate | inversion H4; clear H4 ].
-    destruct ln4; simpl in H5; [discriminate | inversion H5; clear H5 ].
-    apply map_eq_nil in H7, H8; subst.
+    destruct H6 as [ln3 [lnt3 [? [? ?]]]]; subst.
+    apply map_app_lift in H7.
+    destruct H7 as [ln4 [ln5 [? [? ?]]]]; subst.
+    destruct ln2; simpl in H5; [ discriminate | inversion H5; clear H5 ].
+    destruct ln4; simpl in H6; [ discriminate | inversion H6; clear H6 ].
+    apply map_eq_nil in H8, H9; subst.
     intros; unfold mono_fixpoint.
     apply iterate_fixed with (n := n); auto.
     + assert (In n (seq 0 (S (length finite_enum)))).
       * rewrite H2.
         rewrite in_app_iff; right; now left.
-      * apply in_seq in H5; now lia.
-    + rewrite <- H4; symmetry.
+      * apply in_seq in H4; now lia.
+    + rewrite <- H5; symmetry.
       eapply iterate_repeat with (n := n); auto.
       eapply seq_order.
       * rewrite <- app_assoc.
@@ -5426,7 +5446,7 @@ Proof.
   - apply partial_order_bottom.
   - eapply partial_order_trans.
     + apply monotone_preserve; auto.
-      apply partial_order_refl.
+      apply IHn.
     + rewrite H3.
       apply partial_order_refl.
 Qed.
