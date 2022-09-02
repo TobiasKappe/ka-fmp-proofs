@@ -5523,6 +5523,40 @@ Definition lift_multiplication
   )
 .
 
+Lemma lift_multiplication_characterise
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (x1 x2: X -> bool)
+  (x: X)
+:
+  lift_multiplication M x1 x2 x = true <->
+  exists (x1' x2': X),
+    x1 x1' = true /\
+    x2 x2' = true /\
+    monoid_compose M x1' x2' = x
+.
+Proof.
+  unfold lift_multiplication.
+  rewrite disj_true, in_map_iff.
+  split; intros.
+  - destruct H1 as [(x1', x2') [? ?]].
+    apply finite_eqb_eq in H1; subst.
+    apply filter_In in H2.
+    destruct H2 as [_ ?].
+    apply Bool.andb_true_iff in H1.
+    destruct H1 as [? ?].
+    now exists x1', x2'.
+  - destruct H1 as [x1' [x2' [? [? ?]]]].
+    exists (x1', x2'); intuition.
+    + now apply finite_eqb_eq.
+    + apply filter_In; intuition.
+      replace (list_prod finite_enum finite_enum)
+        with (finite_enum (X := (prod X X)))
+        by reflexivity.
+      apply finite_cover.
+Qed.
+
 Program Definition monoid_powerset
   {X: Type}
   `{Finite X}
@@ -5534,47 +5568,21 @@ Program Definition monoid_powerset
   monoid_unit x := finite_eqb x (monoid_unit M);
 |}.
 Next Obligation.
-  unfold lift_multiplication.
   extensionality x.
-  destruct (disj _) eqn:?.
-  - apply disj_true in Heqb.
-    apply in_map_iff in Heqb.
-    destruct Heqb as [(?, x3') [? ?]].
-    apply finite_eqb_eq in H1; subst.
-    apply filter_In in H2.
-    destruct H2 as [_ ?].
-    apply Bool.andb_true_iff in H1; destruct H1.
-    apply disj_true in H1.
-    apply in_map_iff in H1.
-    destruct H1 as [(x1', x2') [? ?]].
-    apply finite_eqb_eq in H1; subst.
-    apply filter_In in H3.
-    destruct H3 as [_ ?].
-    apply Bool.andb_true_iff in H1.
-    destruct H1.
-    symmetry.
-    apply disj_true.
-    apply in_map_iff.
-    exists (x1', monoid_compose M x2' x3').
-    split.
-    + apply finite_eqb_eq.
-      apply monoid_compose_assoc.
-    + apply filter_In.
-      rewrite Bool.andb_true_iff.
-      repeat split; auto.
-      * replace (list_prod finite_enum finite_enum)
-          with (@finite_enum (prod X X) _)
-          by reflexivity.
-        apply finite_cover.
-      * apply disj_true.
-        apply in_map_iff.
-        exists (x2', x3').
-        split.
-        -- now apply finite_eqb_eq.
-        -- apply filter_In.
-           split; auto.
-           replace (list_prod finite_enum finite_enum)
-             with (@finite_enum (prod X X) _)
-             by reflexivity.
-           apply finite_cover.
-Abort.
+  apply ZMicromega.eq_true_iff_eq.
+  repeat rewrite lift_multiplication_characterise.
+  split; intros.
+  - destruct H1 as [x' [x3' [? [? ?]]]].
+    apply lift_multiplication_characterise in H1.
+    destruct H1 as [x1' [x2' [? [? ?]]]]; subst.
+    exists x1', (monoid_compose M x2' x3'); intuition.
+    + apply lift_multiplication_characterise.
+      now exists x2', x3'.
+    + now rewrite monoid_compose_assoc.
+  - destruct H1 as [x1' [x' [? [? ?]]]].
+    apply lift_multiplication_characterise in H2.
+    destruct H2 as [x2' [x3' [? [? ?]]]]; subst.
+    exists (monoid_compose M x1' x2'), x3'; intuition.
+    apply lift_multiplication_characterise.
+    now exists x1', x2'.
+Qed.
