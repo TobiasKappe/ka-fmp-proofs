@@ -5902,3 +5902,47 @@ Next Obligation.
   - apply kleene_star_step_offset_mono.
   - now unfold kleene_star_step_offset.
 Qed.
+
+Equations kleene_interp
+  {X: Type}
+  (K: kleene_algebra X)
+  (f: A -> X)
+  (t: term)
+:
+  X
+:= {
+  kleene_interp K f zero := kleene_zero K;
+  kleene_interp K f one := kleene_unit K;
+  kleene_interp K f (letter a) := f a;
+  kleene_interp K f (t1 + t2) :=
+    kleene_plus K (kleene_interp K f t1) (kleene_interp K f t2);
+  kleene_interp K f (t1 ;; t2) :=
+    kleene_multiply K (kleene_interp K f t1) (kleene_interp K f t2);
+  kleene_interp K f (t*) :=
+    kleene_star K (kleene_interp K f t)
+}.
+
+Lemma kleene_interp_sound
+  {X: Type}
+  (K: kleene_algebra X)
+  (f: A -> X)
+  (t1 t2: term)
+:
+  t1 == t2 ->
+  kleene_interp K f t1 = kleene_interp K f t2
+.
+Proof.
+  intros; dependent induction H0;
+  autorewrite with kleene_interp in *;
+  try congruence; try apply K.
+  - now rewrite kleene_plus_assoc.
+  - unfold kleene_multiply.
+    now rewrite monoid_compose_assoc.
+  - unfold kleene_multiply, kleene_unit.
+    now rewrite monoid_unit_left.
+  - unfold kleene_multiply, kleene_unit.
+    now rewrite monoid_unit_right.
+  - rewrite kleene_plus_commute.
+    now rewrite kleene_star_unroll.
+  - now apply kleene_star_fixpoint.
+Qed.
