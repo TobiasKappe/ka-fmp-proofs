@@ -5208,8 +5208,6 @@ Record monotone
   `{PartialOrderZero Y}
   (f: X -> Y)
 := {
-  monotone_bottom:
-    f partial_order_zero = partial_order_zero;
   monotone_preserve:
     forall (x1 x2: X),
       partial_order_rel x1 x2 ->
@@ -5435,7 +5433,7 @@ Lemma mono_fixpoint_least
   (x: X)
 :
   monotone f ->
-  f x = x ->
+  partial_order_rel (f x) x ->
   partial_order_rel (mono_fixpoint f) x
 .
 Proof.
@@ -5447,8 +5445,7 @@ Proof.
   - eapply partial_order_trans.
     + apply monotone_preserve; auto.
       apply IHn.
-    + rewrite H3.
-      apply partial_order_refl.
+    + apply H3.
 Qed.
 
 Record monoid {X: Type} := {
@@ -5484,9 +5481,18 @@ Record kleene_algebra {X: Type} := {
   kleene_plus_unit:
     forall (x: X),
       kleene_plus x kleene_zero = x;
+  kleene_plus_idempotent:
+    forall (x: X),
+      kleene_plus x x = x;
   kleene_plus_commute:
     forall (x1 x2: X),
       kleene_plus x1 x2 = kleene_plus x2 x1;
+  kleene_multiply_zero_left:
+    forall (x: X),
+      kleene_multiply kleene_zero x = kleene_zero;
+  kleene_multiply_zero_right:
+    forall (x: X),
+      kleene_multiply x kleene_zero = kleene_zero;
   kleene_distribute_left:
     forall (x1 x2 x3: X),
       kleene_multiply x1 (kleene_plus x2 x3) =
@@ -5506,7 +5512,7 @@ Record kleene_algebra {X: Type} := {
 }.
 Arguments kleene_algebra X : clear implicits.
 
-Definition lift_multiplication
+Definition powerset_multiplication
   {X: Type}
   `{Finite X}
   (M: monoid X)
@@ -5516,42 +5522,41 @@ Definition lift_multiplication
   bool
 :=
   disj (
-    map (fun '(x1, x2) => finite_eqb x (monoid_compose M x1 x2)) (
-      filter (fun '(x1, x2) => xs1 x1 && xs2 x2)
-             (list_prod finite_enum finite_enum)
+    map (fun '(x1, x2) =>
+      finite_eqb x (monoid_compose M x1 x2) &&
+      xs1 x1 && xs2 x2
     )
+    (list_prod finite_enum finite_enum)
   )
 .
 
-Lemma lift_multiplication_characterise
+Lemma powerset_multiplication_characterise
   {X: Type}
   `{Finite X}
   (M: monoid X)
   (x1 x2: X -> bool)
   (x: X)
 :
-  lift_multiplication M x1 x2 x = true <->
+  powerset_multiplication M x1 x2 x = true <->
   exists (x1' x2': X),
     x1 x1' = true /\
     x2 x2' = true /\
     monoid_compose M x1' x2' = x
 .
 Proof.
-  unfold lift_multiplication.
+  unfold powerset_multiplication.
   rewrite disj_true, in_map_iff.
   split; intros.
   - destruct H1 as [(x1', x2') [? ?]].
-    apply finite_eqb_eq in H1; subst.
-    apply filter_In in H2.
-    destruct H2 as [_ ?].
-    apply Bool.andb_true_iff in H1.
-    destruct H1 as [? ?].
+    repeat rewrite Bool.andb_true_iff in H1.
+    destruct H1 as [[? ?] ?].
+    apply finite_eqb_eq in H1.
     now exists x1', x2'.
   - destruct H1 as [x1' [x2' [? [? ?]]]].
-    exists (x1', x2'); intuition.
+    exists (x1', x2').
+    repeat rewrite Bool.andb_true_iff; intuition.
     + now apply finite_eqb_eq.
-    + apply filter_In; intuition.
-      replace (list_prod finite_enum finite_enum)
+    + replace (list_prod finite_enum finite_enum)
         with (finite_enum (X := (prod X X)))
         by reflexivity.
       apply finite_cover.
@@ -5564,25 +5569,368 @@ Program Definition monoid_powerset
 :
   monoid (X -> bool)
 := {|
-  monoid_compose := lift_multiplication M;
+  monoid_compose := powerset_multiplication M;
   monoid_unit x := finite_eqb x (monoid_unit M);
 |}.
 Next Obligation.
   extensionality x.
   apply ZMicromega.eq_true_iff_eq.
-  repeat rewrite lift_multiplication_characterise.
+  repeat rewrite powerset_multiplication_characterise.
   split; intros.
   - destruct H1 as [x' [x3' [? [? ?]]]].
-    apply lift_multiplication_characterise in H1.
+    apply powerset_multiplication_characterise in H1.
     destruct H1 as [x1' [x2' [? [? ?]]]]; subst.
     exists x1', (monoid_compose M x2' x3'); intuition.
-    + apply lift_multiplication_characterise.
+    + apply powerset_multiplication_characterise.
       now exists x2', x3'.
     + now rewrite monoid_compose_assoc.
   - destruct H1 as [x1' [x' [? [? ?]]]].
-    apply lift_multiplication_characterise in H2.
+    apply powerset_multiplication_characterise in H2.
     destruct H2 as [x2' [x3' [? [? ?]]]]; subst.
     exists (monoid_compose M x1' x2'), x3'; intuition.
-    apply lift_multiplication_characterise.
+    apply powerset_multiplication_characterise.
     now exists x1', x2'.
+Qed.
+Next Obligation.
+  extensionality x'.
+  apply ZMicromega.eq_true_iff_eq.
+  rewrite powerset_multiplication_characterise.
+  split; intros.
+  - destruct H1 as [x1' [x2' [? [? ?]]]].
+    apply finite_eqb_eq in H2; subst.
+    now rewrite monoid_unit_left.
+  - exists x', (monoid_unit M).
+    intuition.
+    now apply finite_eqb_eq.
+Qed.
+Next Obligation.
+  extensionality x'.
+  apply ZMicromega.eq_true_iff_eq.
+  rewrite powerset_multiplication_characterise.
+  split; intros.
+  - destruct H1 as [x1' [x2' [? [? ?]]]].
+    apply finite_eqb_eq in H1; subst.
+    now rewrite monoid_unit_right.
+  - exists (monoid_unit M), x'.
+    intuition.
+    now apply finite_eqb_eq.
+Qed.
+
+Program Instance subset_order
+  (X: Type)
+:
+  PartialOrderZero (X -> bool)
+:= {|
+  partial_order_rel xs1 xs2 := forall x, xs1 x = true -> xs2 x = true;
+  partial_order_zero x := false;
+|}.
+Next Obligation.
+  extensionality x.
+  apply ZMicromega.eq_true_iff_eq.
+  intuition.
+Qed.
+
+Definition powerset_union
+  {X: Type}
+  (xs1 xs2: X -> bool)
+  (x: X)
+:=
+  xs1 x || xs2 x
+.
+
+Definition powerset_bottom
+  {X: Type}
+  (x: X)
+:
+  bool
+:=
+  false
+.
+
+Definition kleene_star_step
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs xs': X -> bool)
+:
+  X -> bool
+:=
+  powerset_union (monoid_compose (monoid_powerset M) xs xs')
+                 (monoid_unit (monoid_powerset M))
+.
+
+Lemma powerset_union_characterise
+  {X: Type}
+  (xs1 xs2: X -> bool)
+  (x: X)
+:
+  powerset_union xs1 xs2 x = true <->
+  xs1 x = true \/ xs2 x = true
+.
+Proof.
+  unfold powerset_union.
+  now rewrite Bool.orb_true_iff.
+Qed.
+
+Lemma powerset_union_order
+  {X: Type}
+  (xs1 xs2: X -> bool)
+:
+  powerset_union xs1 xs2 = xs2 <->
+  partial_order_rel xs1 xs2
+.
+Proof.
+  unfold partial_order_rel, powerset_union.
+  simpl; split; intros.
+  - now rewrite <- H0, H1.
+  - extensionality x.
+    apply ZMicromega.eq_true_iff_eq.
+    rewrite Bool.orb_true_iff.
+    firstorder.
+Qed.
+
+Definition kleene_star_step_offset
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs1 xs2 xs3: X -> bool)
+:
+  X -> bool
+:=
+  powerset_union (powerset_multiplication M xs1 xs3) xs2
+.
+
+Lemma powerset_union_multiply_distribute_right
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs1 xs2 xs3: X -> bool)
+:
+  powerset_multiplication M (powerset_union xs1 xs2) xs3 =
+  powerset_union (powerset_multiplication M xs1 xs3)
+                 (powerset_multiplication M xs2 xs3)
+.
+Proof.
+  extensionality x'.
+  unfold powerset_union.
+  apply ZMicromega.eq_true_iff_eq.
+  rewrite Bool.orb_true_iff.
+  repeat rewrite powerset_multiplication_characterise.
+  setoid_rewrite Bool.orb_true_iff.
+  firstorder.
+Qed.
+
+Lemma powerset_union_multiply_distribute_left
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs1 xs2 xs3: X -> bool)
+:
+  powerset_multiplication M xs1 (powerset_union xs2 xs3) =
+  powerset_union (powerset_multiplication M xs1 xs2)
+    (powerset_multiplication M xs1 xs3)
+.
+Proof.
+  extensionality x'.
+  unfold powerset_union.
+  apply ZMicromega.eq_true_iff_eq.
+  rewrite Bool.orb_true_iff.
+  repeat rewrite powerset_multiplication_characterise.
+  setoid_rewrite Bool.orb_true_iff.
+  firstorder.
+Qed.
+
+Lemma powerset_union_commute
+  {X: Type}
+  (xs1 xs2: X -> bool)
+:
+  powerset_union xs1 xs2 =
+  powerset_union xs2 xs1
+.
+Proof.
+  extensionality x.
+  unfold powerset_union.
+  btauto.
+Qed.
+
+Lemma disj_false
+  (l: list bool)
+:
+  disj l = false <->
+  forall (x: bool), In x l -> x = false
+.
+Proof.
+  split; intros.
+  - induction l.
+    + destruct H1.
+    + autorewrite with disj in H0.
+      apply Bool.orb_false_iff in H0.
+      destruct H0, H1.
+      * congruence.
+      * now apply IHl.
+  - induction l;
+    autorewrite with disj.
+    + reflexivity.
+    + apply Bool.orb_false_iff.
+      firstorder.
+Qed.
+
+Lemma kleene_star_step_offset_fixpoint
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs1 xs2: X -> bool)
+:
+  mono_fixpoint (kleene_star_step_offset M xs1 xs2) =
+  powerset_multiplication M (mono_fixpoint (kleene_star_step M xs1)) xs2
+.
+Proof.
+  unfold mono_fixpoint.
+  generalize (@length (X -> bool) finite_enum); intros.
+  induction n; simpl in *.
+  - extensionality x.
+    unfold powerset_multiplication.
+    symmetry; apply disj_false; intros.
+    apply in_map_iff in H1.
+    destruct H1 as [(x1, x2) [? ?]]; subst.
+    btauto.
+  - rewrite IHn.
+    unfold kleene_star_step at 2, kleene_star_step_offset at 1.
+    rewrite powerset_union_multiply_distribute_right.
+    replace (powerset_multiplication M)
+      with (monoid_compose (monoid_powerset M))
+      by reflexivity.
+    rewrite monoid_compose_assoc.
+    now rewrite monoid_unit_right.
+Qed.
+
+Lemma powerset_multiplication_mono
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs1 xs2 xs1' xs2': X -> bool)
+:
+  partial_order_rel xs1 xs1' ->
+  partial_order_rel xs2 xs2' ->
+  partial_order_rel (powerset_multiplication M xs1 xs2)
+                    (powerset_multiplication M xs1' xs2')
+.
+Proof.
+  simpl; setoid_rewrite powerset_multiplication_characterise; firstorder.
+Qed.
+
+Lemma powerset_union_mono
+  {X: Type}
+  `{Finite X}
+  (xs1 xs2 xs1' xs2': X -> bool)
+:
+  partial_order_rel xs1 xs1' ->
+  partial_order_rel xs2 xs2' ->
+  partial_order_rel (powerset_union xs1 xs2)
+                    (powerset_union xs1' xs2')
+.
+Proof.
+  simpl; unfold powerset_union; setoid_rewrite Bool.orb_true_iff; firstorder.
+Qed.
+
+Lemma kleene_star_step_mono
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs: X -> bool)
+:
+  monotone (kleene_star_step M xs)
+.
+Proof.
+  constructor; intros.
+  unfold kleene_star_step.
+  apply powerset_union_mono.
+  - apply powerset_multiplication_mono; auto.
+    apply partial_order_refl.
+  - apply partial_order_refl.
+Qed.
+
+Lemma kleene_star_step_offset_mono
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+  (xs1 xs2: X -> bool)
+:
+  monotone (kleene_star_step_offset M xs1 xs2)
+.
+Proof.
+  constructor; intros.
+  unfold kleene_star_step_offset.
+  apply powerset_union_mono.
+  - apply powerset_multiplication_mono; auto.
+    apply partial_order_refl.
+  - apply partial_order_refl.
+Qed.
+
+Program Definition monoid_to_kleene_algebra
+  {X: Type}
+  `{Finite X}
+  (M: monoid X)
+:
+  kleene_algebra (X -> bool)
+:= {|
+  kleene_monoid := monoid_powerset M;
+  kleene_zero x := false;
+  kleene_plus := powerset_union;
+  kleene_star xs := mono_fixpoint (kleene_star_step M xs);
+|}.
+Next Obligation.
+  extensionality x'.
+  unfold powerset_union.
+  btauto.
+Qed.
+Next Obligation.
+  extensionality x'.
+  unfold powerset_union.
+  btauto.
+Qed.
+Next Obligation.
+  extensionality x'.
+  unfold powerset_union.
+  btauto.
+Qed.
+Next Obligation.
+  apply powerset_union_commute.
+Qed.
+Next Obligation.
+  extensionality x'.
+  unfold powerset_multiplication.
+  apply disj_false; intros.
+  apply in_map_iff in H1.
+  destruct H1 as [(x1, x2') [? ?]]; subst.
+  btauto.
+Qed.
+Next Obligation.
+  extensionality x'.
+  unfold powerset_multiplication.
+  apply disj_false; intros.
+  apply in_map_iff in H1.
+  destruct H1 as [(x1, x2') [? ?]]; subst.
+  btauto.
+Qed.
+Next Obligation.
+  apply powerset_union_multiply_distribute_left.
+Qed.
+Next Obligation.
+  apply powerset_union_multiply_distribute_right.
+Qed.
+Next Obligation.
+  transitivity (kleene_star_step M x (mono_fixpoint (kleene_star_step M x))).
+  - unfold kleene_star_step.
+    now rewrite powerset_union_commute.
+  - apply mono_fixpoint_fixpoint.
+    apply kleene_star_step_mono.
+Qed.
+Next Obligation.
+  apply powerset_union_order.
+  apply powerset_union_order in H1.
+  rewrite <- kleene_star_step_offset_fixpoint.
+  apply mono_fixpoint_least.
+  - apply kleene_star_step_offset_mono.
+  - now unfold kleene_star_step_offset.
 Qed.
