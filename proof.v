@@ -97,7 +97,6 @@ Polymorphic Inductive term_equiv: term -> term -> Prop :=
 | EDistributeLeft: forall t1 t2 t3, t1 ;; (t2 + t3) == t1 ;; t2 + t1 ;; t3
 | EDistributeRight: forall t1 t2 t3, (t1 + t2) ;; t3 == t1 ;; t3 + t2 ;; t3
 | EStarLeft: forall t, t* == t ;; t* + 1
-| EStarRight: forall t, t* == t* ;; t + 1
 | EFixLeft: forall t1 t2 t3, t2 ;; t1 + t3 <= t1 -> t2* ;; t3 <= t1
 where "t1 == t2" := (term_equiv t1 t2)
   and "t1 <= t2" := (t1 + t2 == t2).
@@ -3910,37 +3909,6 @@ Proof.
     + dependent destruction H0.
       * dependent destruction H0.
         now apply MatchStarStep.
-      * dependent destruction H0.
-        apply MatchStarBase.
-  - split; intros.
-    + apply term_matches_star_split in H0.
-      destruct H0 as [l [? ?]]; subst.
-      induction l using rev_ind; simpl.
-      * apply MatchPlusRight, MatchOne.
-      * rewrite concat_app; simpl.
-        rewrite app_nil_r.
-        apply MatchPlusLeft, MatchTimes.
-        apply term_matches_star_split.
-        -- exists l; intuition.
-        -- apply H1.
-           apply in_app_iff.
-           intuition.
-    + dependent destruction H0.
-      * dependent destruction H0.
-        apply term_matches_star_split in H0_.
-        destruct H0_ as [l [? ?]]; subst.
-        apply term_matches_star_split.
-        exists ((l ++ w2 :: nil)).
-        split.
-        -- rewrite concat_app.
-           simpl.
-           now rewrite app_nil_r.
-        -- intros.
-           apply in_app_iff in H0.
-           destruct H0.
-           ++ intuition.
-           ++ destruct H0; intuition.
-              now subst.
       * dependent destruction H0.
         apply MatchStarBase.
   - split; intros.
