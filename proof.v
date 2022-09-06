@@ -5946,3 +5946,186 @@ Proof.
     now rewrite kleene_star_unroll.
   - now apply kleene_star_fixpoint.
 Qed.
+
+Program Definition term_monoid
+  (t: term)
+:
+  monoid (derivative t -> derivative t -> bool)
+:= {|
+  monoid_compose := matrix_product_bool;
+  monoid_unit := finite_eqb;
+|}.
+Next Obligation.
+  apply matrix_product_bool_associative.
+Qed.
+Next Obligation.
+  apply matrix_product_bool_unit_right.
+Qed.
+Next Obligation.
+  apply matrix_product_bool_unit_left.
+Qed.
+
+Definition term_kleene_algebra
+  (t: term)
+:
+  kleene_algebra ((derivative t -> derivative t -> bool) -> bool)
+:=
+  monoid_to_kleene_algebra (term_monoid t)
+.
+
+Definition term_kleene_algebra_embed
+  (t: term)
+  (a: A)
+:
+  (derivative t -> derivative t -> bool) -> bool
+:=
+  finite_eqb (derive_b a)
+.
+
+Lemma automaton_transition_matrix_app
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (w1 w2: list A)
+:
+  automaton_transition_matrix aut (w1 ++ w2) =
+  matrix_product_bool (automaton_transition_matrix aut w1)
+                      (automaton_transition_matrix aut w2)
+.
+Proof.
+  induction w1; autorewrite with automaton_transition_matrix; simpl.
+  - now rewrite matrix_product_bool_unit_left.
+  - rewrite matrix_product_bool_associative.
+    now rewrite <- IHw1.
+Qed.
+
+Lemma kleene_interp_witness_construct
+  (t1 t2: term)
+  (m: derivative t1 -> derivative t1 -> bool)
+:
+  kleene_interp (term_kleene_algebra t1)
+                (term_kleene_algebra_embed t1)
+                t2 m = true ->
+  exists w,
+    automaton_transition_matrix (automaton_antimirov t1) w = m /\
+    term_matches t2 w
+.
+Proof.
+  revert t1 m; dependent induction t2; intros;
+  autorewrite with derivative_write in H0;
+  autorewrite with kleene_interp in H0;
+  simpl in H0.
+  - discriminate.
+  - unfold kleene_unit in H0; simpl in H0.
+    apply finite_eqb_eq in H0; subst.
+    exists nil; intuition.
+    constructor.
+  - unfold term_kleene_algebra_embed in H0.
+    apply finite_eqb_eq in H0; subst.
+    exists (a :: nil).
+    autorewrite with automaton_transition_matrix.
+    rewrite matrix_product_bool_unit_right; intuition.
+    constructor.
+  - apply powerset_union_characterise in H0; destruct H0.
+    + apply IHt2_1 in H0.
+      destruct H0 as [w [? ?]].
+      exists w; intuition.
+      now constructor.
+    + apply IHt2_2 in H0.
+      destruct H0 as [w [? ?]].
+      exists w; intuition.
+      now constructor.
+  - unfold kleene_multiply in H0; simpl in H0.
+    apply powerset_multiplication_characterise in H0.
+    destruct H0 as [m1 [m2 [? [? ?]]]]; subst.
+    apply IHt2_1 in H0; destruct H0 as [w1 [? ?]]; subst.
+    apply IHt2_2 in H1; destruct H1 as [w2 [? ?]]; subst.
+    exists (w1 ++ w2); simpl.
+    rewrite automaton_transition_matrix_app; intuition.
+    now constructor.
+  - unfold mono_fixpoint in H0; revert H0.
+    match goal with
+    | |- context [ length ?l ] => generalize (length l)
+    end.
+    intros n; revert m.
+    induction n; simpl; intros.
+    + discriminate.
+    + unfold kleene_star_step in H0 at 1.
+      apply powerset_union_characterise in H0.
+      simpl in H0; destruct H0.
+      * apply powerset_multiplication_characterise in H0.
+        destruct H0 as [m1 [m2 [? [? ?]]]].
+        apply IHn in H1; destruct H1 as [w2 [? ?]]; subst.
+        apply IHt2 in H0; destruct H0 as [w1 [? ?]]; subst.
+        exists (w1 ++ w2).
+        rewrite automaton_transition_matrix_app.
+        intuition (now constructor).
+      * exists nil.
+        apply finite_eqb_eq in H0; subst.
+        intuition constructor.
+Qed.
+
+Lemma kleene_interp_witness_apply
+  (t1 t2: term)
+  (w: list A)
+:
+  term_matches t2 w ->
+  kleene_interp (term_kleene_algebra t1)
+                (term_kleene_algebra_embed t1)
+                t2
+                (automaton_transition_matrix (automaton_antimirov t1) w)
+    = true
+.
+Proof.
+  intros; revert t1.
+  dependent induction H0; intros;
+  autorewrite with kleene_interp;
+  autorewrite with automaton_transition_matrix;
+  simpl.
+  - unfold kleene_unit; simpl.
+    now apply finite_eqb_eq.
+  - unfold term_kleene_algebra_embed.
+    apply finite_eqb_eq.
+    now rewrite matrix_product_bool_unit_right.
+  - apply powerset_union_characterise.
+    rewrite IHterm_matches; intuition btauto.
+  - apply powerset_union_characterise.
+    rewrite IHterm_matches; intuition btauto.
+  - unfold kleene_multiply; simpl.
+    apply powerset_multiplication_characterise.
+    exists (automaton_transition_matrix (automaton_antimirov t0) w1).
+    exists (automaton_transition_matrix (automaton_antimirov t0) w2).
+    intuition; simpl.
+    now rewrite automaton_transition_matrix_app.
+  - rewrite <- mono_fixpoint_fixpoint.
+    + unfold kleene_star_step.
+      apply powerset_union_characterise; right.
+      now apply finite_eqb_eq.
+    + apply kleene_star_step_mono.
+  - rewrite <- mono_fixpoint_fixpoint.
+    + unfold kleene_star_step at 1.
+      apply powerset_union_characterise; left.
+      apply powerset_multiplication_characterise.
+      exists (automaton_transition_matrix (automaton_antimirov t1) w1).
+      exists (automaton_transition_matrix (automaton_antimirov t1) w2).
+      intuition.
+      * specialize (IHterm_matches2 t1).
+        now autorewrite with kleene_interp in IHterm_matches2.
+      * now rewrite automaton_transition_matrix_app.
+    + apply kleene_star_step_mono.
+Qed.
+
+Lemma kleene_interp_recombine
+  (t: term)
+  (d: derivative t)
+:
+  sum (
+     map (automaton_relation_solution (automaton_antimirov t))
+         (filter (kleene_interp (term_kleene_algebra t)
+                                (term_kleene_algebra_embed t)
+                                (antimirov_solution t d))
+                 finite_enum)
+  ) == antimirov_solution t d
+.
+Proof.
+Abort.
