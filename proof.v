@@ -6115,6 +6115,49 @@ Proof.
     + apply kleene_star_step_mono.
 Qed.
 
+Lemma automaton_accepts_transition_matrix
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (q: Q)
+  (w: list A)
+:
+  automaton_accepts aut q w <->
+  vector_inner_product_bool ((automaton_transition_matrix aut w) q)
+                            (aut_accept aut) = true
+.
+Proof.
+  unfold vector_inner_product_bool.
+  rewrite disj_true.
+  rewrite in_map_iff.
+  setoid_rewrite Bool.andb_true_iff.
+  revert q; induction w; intros.
+  - firstorder.
+    + inversion H1; subst.
+      exists q; intuition.
+      autorewrite with automaton_transition_matrix.
+      now apply finite_eqb_eq.
+    + apply AcceptsEmpty.
+      autorewrite with automaton_transition_matrix in H1.
+      apply finite_eqb_eq in H1.
+      congruence.
+  - split; intros.
+    + inversion H1; subst.
+      apply IHw in H6.
+      destruct H6 as [qf [[? ?] _]].
+      exists qf; intuition.
+      autorewrite with automaton_transition_matrix.
+      apply matrix_product_characterise.
+      now exists q'.
+    + destruct H1 as [qf [[? ?] _]].
+      autorewrite with automaton_transition_matrix in H1.
+      apply matrix_product_characterise in H1.
+      destruct H1 as [q' [? ?]].
+      apply AcceptsStep with (q' := q'); auto.
+      apply IHw.
+      now exists qf; intuition.
+Qed.
+
 Lemma kleene_interp_recombine
   (t: term)
   (d: derivative t)
@@ -6128,4 +6171,57 @@ Lemma kleene_interp_recombine
   ) == antimirov_solution t d
 .
 Proof.
-Abort.
+  unfold antimirov_solution.
+  rewrite <- (automaton_sum_accepting_matrices_characterise
+               (automaton_antimirov t) d) at 2.
+  unfold automaton_sum_accepting_matrices.
+  apply term_lequiv_squeeze.
+  - apply sum_lequiv_all; intros.
+    apply in_map_iff in H0.
+    destruct H0 as [m [? ?]]; subst.
+    apply filter_In in H1.
+    destruct H1 as [_ ?].
+    apply kleene_interp_witness_construct in H0.
+    destruct H0 as [w [? ?]].
+    apply sum_lequiv_member.
+    apply in_map_iff.
+    exists m; subst; intuition.
+    unfold automaton_accepting_matrices.
+    apply filter_In.
+    split; [ apply finite_cover |].
+    apply automaton_accepts_transition_matrix.
+    rewrite <- automaton_least_solution_match.
+    + apply H1.
+    + rewrite automaton_least_solution_invariant.
+      apply compute_automaton_solution_least_solution.
+  - apply sum_lequiv_all; intros.
+    apply in_map_iff in H0.
+    destruct H0 as [? [? ?]]; subst.
+    destruct (term_empty (automaton_relation_solution
+                           (automaton_antimirov t) x)) eqn:?.
+    + apply term_empty_zero in Heqb.
+      rewrite Heqb.
+      apply term_lequiv_zero.
+    + apply term_empty_dec in Heqb.
+      destruct Heqb as [w ?].
+      * rewrite term_equiv_sound
+          with (t2 := automaton_relation_solution' (automaton_antimirov t) x)
+          in H0 by (apply automaton_relation_solution_characterise).
+        unfold automaton_relation_solution' in H0.
+        apply automaton_transition_monad_solution in H0.
+        rewrite matrix_product_bool_unit_left in H0; subst.
+        apply sum_lequiv_member.
+        apply in_map_iff.
+        eexists; intuition.
+        apply filter_In.
+        split; [apply finite_cover |].
+        apply kleene_interp_witness_apply.
+        unfold automaton_accepting_matrices in H1.
+        apply filter_In in H1.
+        destruct H1 as [_ ?].
+        rewrite automaton_least_solution_match.
+        -- apply automaton_accepts_transition_matrix, H0.
+        -- rewrite automaton_least_solution_invariant.
+           apply compute_automaton_solution_least_solution;
+           apply automaton_relation_solution_characterise.
+Qed.
