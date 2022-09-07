@@ -1854,6 +1854,7 @@ Record automaton_homomorphism
     aut_accept aut1 q1 = true ->
     aut_accept aut2 (automaton_homomorphism_f q1) = true;
 }.
+Arguments automaton_homomorphism_f {Q1} {Q2} {aut1} {aut2}.
 
 Equations derive_list (t: term) : list (derivative t) := {
   derive_list 0 := nil;
@@ -6170,22 +6171,33 @@ Proof.
       now exists qf; intuition.
 Qed.
 
-Lemma kleene_interp_recombine
+Definition kleene_interp_recombine
   {Q: Type}
   `{Finite Q}
   (aut: automaton Q)
   (q: Q)
 :
+  term
+:=
   sum (
      map (automaton_relation_solution aut)
          (filter (kleene_interp (automaton_kleene_algebra aut)
                                 (automaton_kleene_algebra_embed aut)
                                 (compute_automaton_solution aut q))
                  finite_enum)
-  ) == compute_automaton_solution aut q
+  )
+.
+
+Lemma kleene_interp_recombine_characterise
+  {Q: Type}
+  `{Finite Q}
+  (aut: automaton Q)
+  (q: Q)
+:
+   kleene_interp_recombine aut q == compute_automaton_solution aut q
 .
 Proof.
-  unfold antimirov_solution.
+  unfold kleene_interp_recombine.
   rewrite <- (automaton_sum_accepting_matrices_characterise aut q) at 2.
   unfold automaton_sum_accepting_matrices.
   apply term_lequiv_squeeze.
@@ -6237,3 +6249,313 @@ Proof.
            apply compute_automaton_solution_least_solution;
            apply automaton_relation_solution_characterise.
 Qed.
+
+Program Instance finite_coproduct
+  (X Y: Type)
+  `{Finite X}
+  `{Finite Y}
+:
+  Finite (X + Y)
+:= {|
+  finite_enum := map inl finite_enum ++ map inr finite_enum
+|}.
+Next Obligation.
+  destruct x1, x2.
+  - destruct (finite_dec x x0).
+    + left; congruence.
+    + right; congruence.
+  - now right.
+  - now right.
+  - destruct (finite_dec y y0).
+    + left; congruence.
+    + right; congruence.
+Qed.
+Next Obligation.
+  apply in_app_iff.
+  repeat rewrite in_map_iff.
+  destruct x.
+  - left; exists x; intuition.
+  - right; exists y; intuition.
+Qed.
+Next Obligation.
+  apply NoDup_app.
+  - apply NoDup_map.
+    + intros; now inversion H2.
+    + apply finite_nodup.
+  - apply NoDup_map.
+    + intros; now inversion H2.
+    + apply finite_nodup.
+  - intros; intro.
+    rewrite in_map_iff in H2, H3.
+    destruct H2 as [x' [? _]].
+    destruct H3 as [x'' [? _]].
+    now subst.
+  - intros; intro.
+    rewrite in_map_iff in H2, H3.
+    destruct H2 as [x' [? _]].
+    destruct H3 as [x'' [? _]].
+    now subst.
+Qed.
+
+Definition automaton_coproduct
+  {Q1 Q2: Type}
+  (aut1: automaton Q1)
+  (aut2: automaton Q2)
+:
+  automaton (Q1 + Q2)
+:= {|
+  aut_accept q :=
+    match q with
+    | inl q1 => aut_accept aut1 q1
+    | inr q2 => aut_accept aut2 q2
+    end;
+  aut_transitions a q q' :=
+    match q, q' with
+    | inl q1, inl q1' => aut_transitions aut1 a q1 q1'
+    | inr q2, inr q2' => aut_transitions aut2 a q2 q2'
+    | _, _ => false
+    end;
+|}.
+
+Program Definition automaton_homomorphism_inl
+  {Q1 Q2: Type}
+  (aut1: automaton Q1)
+  (aut2: automaton Q2)
+:
+  automaton_homomorphism aut1 (automaton_coproduct aut1 aut2)
+:= {|
+  automaton_homomorphism_f := inl
+|}.
+
+Program Definition automaton_homomorphism_inr
+  {Q1 Q2: Type}
+  (aut1: automaton Q1)
+  (aut2: automaton Q2)
+:
+  automaton_homomorphism aut2 (automaton_coproduct aut1 aut2)
+:= {|
+  automaton_homomorphism_f := inr
+|}.
+
+Lemma automaton_coproduct_bound_upper
+  {Q1 Q2: Type}
+  `{Finite Q1}
+  `{Finite Q2}
+  (aut1: automaton Q1)
+  (aut2: automaton Q2)
+  (q: Q1 + Q2)
+:
+  compute_automaton_solution (automaton_coproduct aut1 aut2) q
+    <= match q with
+       | inl q1 => compute_automaton_solution aut1 q1
+       | inr q2 => compute_automaton_solution aut2 q2
+       end
+.
+Proof.
+  rewrite <- ETimesUnitRight with (t := compute_automaton_solution _ _).
+  revert q.
+  apply compute_automaton_solution_least_solution.
+  split; intros.
+  - destruct q1, q2; try discriminate.
+    + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut1 q).
+      rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut1 q0).
+      now apply compute_automaton_solution_least_solution.
+    + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut2 q).
+      rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut2 q0).
+      now apply compute_automaton_solution_least_solution.
+  - destruct q.
+    + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut1 q).
+      now apply compute_automaton_solution_least_solution.
+    + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut2 q).
+      now apply compute_automaton_solution_least_solution.
+Qed.
+
+Lemma automaton_coproduct_solution_left
+  {Q1 Q2: Type}
+  `{Finite Q1}
+  `{Finite Q2}
+  (aut1: automaton Q1)
+  (aut2: automaton Q2)
+:
+  compute_automaton_solution aut1 ===
+  compute_automaton_solution (automaton_coproduct aut1 aut2) ∘ inl
+.
+Proof.
+  intro q; apply term_lequiv_squeeze.
+  - rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut1 q).
+    apply compute_automaton_solution_least_solution.
+    replace inl
+      with (automaton_homomorphism_f (automaton_homomorphism_inl aut1 aut2))
+      by reflexivity.
+    apply automaton_homomorphism_solution.
+    apply automaton_solution_invariant.
+    apply compute_automaton_solution_least_solution.
+  - unfold compose; simpl.
+    now rewrite automaton_coproduct_bound_upper.
+Qed.
+
+Lemma automaton_coproduct_solution_right
+  {Q1 Q2: Type}
+  `{Finite Q1}
+  `{Finite Q2}
+  (aut1: automaton Q1)
+  (aut2: automaton Q2)
+:
+  compute_automaton_solution aut2 ===
+  compute_automaton_solution (automaton_coproduct aut1 aut2) ∘ inr
+.
+Proof.
+  intro q; apply term_lequiv_squeeze.
+  - rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut2 q).
+    apply compute_automaton_solution_least_solution.
+    replace inr
+      with (automaton_homomorphism_f (automaton_homomorphism_inr aut1 aut2))
+      by reflexivity.
+    apply automaton_homomorphism_solution.
+    apply automaton_solution_invariant.
+    apply compute_automaton_solution_least_solution.
+  - unfold compose; simpl.
+    now rewrite automaton_coproduct_bound_upper.
+Qed.
+
+Definition term_interp_finite_equiv
+  (t1 t2: term)
+:=
+  forall {X: Type} `{Finite X} (k: kleene_algebra X) (f: A -> X),
+    kleene_interp k f t1 = kleene_interp k f t2
+.
+
+Lemma kleene_interp_sum
+  {X: Type}
+  `{Finite X}
+  (k: kleene_algebra X)
+  (f: A -> X)
+  (l: list term)
+:
+  kleene_interp k f (sum l) = fold_right (kleene_plus k) (kleene_zero k) (map (kleene_interp k f) l)
+.
+Proof.
+Admitted.
+
+Lemma powerset_union_fold_right_characterise
+  {X: Type}
+  (l: list (X -> bool))
+  (x: X)
+:
+  fold_right powerset_union (fun _ => false) l x = true <->
+  exists (s: X -> bool), In s l /\ s x = true
+.
+Proof.
+Admitted.
+
+Lemma term_normal_form_left
+  (t1 t2: term)
+:
+  let aut := automaton_coproduct (automaton_antimirov t1)
+                                 (automaton_antimirov t2) in
+  let rels := kleene_interp (automaton_kleene_algebra aut)
+                            (automaton_kleene_algebra_embed aut) t1 in
+  t1 == sum (map (automaton_relation_solution aut)
+                 (filter rels finite_enum))
+.
+Proof.
+  intros.
+  rewrite term_roundtrip_invariant at 1.
+  unfold term_roundtrip.
+  apply term_lequiv_squeeze.
+  - apply sum_lequiv_all; intros.
+    apply in_map_iff in H0.
+    destruct H0 as [? [? ?]]; subst.
+    unfold antimirov_solution.
+    rewrite (automaton_coproduct_solution_left _ (automaton_antimirov t2) x).
+    unfold compose; simpl.
+    rewrite <- kleene_interp_recombine_characterise.
+    unfold kleene_interp_recombine.
+    apply sum_lequiv_all; intros.
+    apply in_map_iff in H0.
+    destruct H0 as [? [? ?]]; subst.
+    apply filter_In in H2.
+    destruct H2 as [_ ?].
+    apply sum_lequiv_member.
+    apply in_map_iff.
+    eexists; intuition.
+    apply filter_In.
+    split; [apply matrix_finite|].
+    subst rels aut.
+    rewrite kleene_interp_sound
+      with (t2 := sum (map derivative_write (initial_l t1)))
+      by (apply initial_reconstruct).
+    rewrite kleene_interp_sum.
+    apply powerset_union_fold_right_characterise.
+    eexists.
+    split; [| apply H0 ].
+    apply in_map_iff.
+    exists (derivative_write x); intuition.
+    + apply kleene_interp_sound.
+      apply term_lequiv_squeeze.
+      * admit.
+      * pose proof (automaton_coproduct_solution_left (automaton_antimirov t1) (automaton_antimirov t2) x).
+        unfold compose in H2; simpl in H2.
+        rewrite <- H2.
+        apply antimirov_solution_upper_bound.
+    + apply in_map_iff.
+      now eexists.
+  - apply sum_lequiv_all; intros.
+    apply in_map_iff in H0.
+    destruct H0 as [? [? ?]]; subst.
+    rewrite automaton_relation_solution_characterise.
+    unfold automaton_relation_solution'.
+    rewrite <- kleene_interp_recombine_characterise.
+    rewrite automaton_relation_solution_characterise.
+    unfold automaton_relation_solution'.
+Admitted.
+
+Lemma term_normal_form_right
+  (t1 t2: term)
+:
+  let aut := automaton_coproduct (automaton_antimirov t1)
+                                 (automaton_antimirov t2) in
+  let rels := kleene_interp (automaton_kleene_algebra aut)
+                            (automaton_kleene_algebra_embed aut) t2 in
+  t2 == sum (map (automaton_relation_solution aut)
+                 (filter rels finite_enum))
+.
+Proof.
+Admitted.
+
+Lemma term_interp_finite_equiv_implies_equiv
+  (t1 t2: term)
+:
+  term_interp_finite_equiv t1 t2 ->
+  t1 == t2
+.
+Proof.
+  intros.
+  rewrite term_normal_form_left with (t2 := t2) at 1; symmetry.
+  rewrite term_normal_form_right with (t1 := t1) at 1; symmetry.
+  rewrite H0.
+  - reflexivity.
+  - typeclasses eauto.
+Qed.
+
+Definition foo: forall (t: term) (d: derivative t),
+  derivative (derivative_write d) -> derivative t.
+Proof.
+  intros t ? t'.
+  dependent induction d;
+  autorewrite with derivative_write in t'.
+  - exact TOneOne.
+  - exact (TLetterLetter a).
+  - exact TLetterOne.
+  - now apply TPlusLeft.
+  - now apply TPlusRight.
+  - dependent destruction t'.
+    + now apply TTimesPre.
+    + now apply TTimesPost.
+  - now apply TTimesPost.
+  - dependent destruction t'; auto.
+    now apply TStarInner.
+  - dependent destruction t'.
+    apply TStarOne.
+Defined.
+
