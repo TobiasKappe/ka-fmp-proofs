@@ -7088,3 +7088,96 @@ Proof.
     + apply denest_pre.
     + auto.
 Qed.
+
+Equations term_subst (f: A -> term) (t: term) : term := {
+  term_subst f 0 := 0;
+  term_subst f 1 := 1;
+  term_subst f ($ a) := f a;
+  term_subst f (t1 + t2) := term_subst f t1 + term_subst f t2;
+  term_subst f (t1 ;; t2) := term_subst f t1 ;; term_subst f t2;
+  term_subst f (t*) := (term_subst f t)*
+}.
+
+Lemma term_subst_preserve (f: A -> term) (t1 t2: term):
+  t1 == t2 ->
+  term_subst f t1 == term_subst f t2
+.
+Proof.
+  intros.
+  dependent induction H0;
+  autorewrite with term_subst.
+  - reflexivity.
+  - now symmetry.
+  - now transitivity (term_subst f t2).
+  - now rewrite IHterm_equiv1, IHterm_equiv2.
+  - now rewrite IHterm_equiv1, IHterm_equiv2.
+  - now rewrite IHterm_equiv.
+  - apply EPlusIdemp.
+  - apply EPlusComm.
+  - apply EPlusAssoc.
+  - apply EPlusUnit.
+  - apply ETimesAssoc.
+  - apply ETimesUnitRight.
+  - apply ETimesUnitLeft.
+  - apply ETimesZeroLeft.
+  - apply ETimesZeroRight.
+  - apply EDistributeLeft.
+  - apply EDistributeRight.
+  - apply EStarLeft.
+  - autorewrite with term_subst in IHterm_equiv.
+    now apply EFixLeft.
+Qed.
+
+Variable (a1 a2: A).
+Hypotheses (HDiff: a1 <> a2).
+
+Definition subst2 (t1 t2: term) (a: A) : term :=
+  if finite_dec a1 a then t1
+  else if finite_dec a2 a then t2
+  else 0
+.
+
+Ltac force_subst_check :=
+  autorewrite with term_subst; unfold subst2; simpl;
+  pose proof HDiff;
+  repeat destruct (finite_dec _ _); subst; try contradiction;
+  reflexivity.
+
+Lemma denest_general (t1 t2: term):
+  (t1 + t2)* == t1* ;; (t2 ;; t1*) *
+.
+Proof.
+  replace ((t1 + t2)*)
+    with (term_subst (subst2 t1 t2) (($a1 + $a2)*))
+    by force_subst_check.
+  replace (t1 *;; (t2;; t1 *) *)
+    with (term_subst (subst2 t1 t2) ($a1 *;; ($a2;; $a1 *) *))
+    by force_subst_check.
+  apply term_subst_preserve, denest.
+Qed.
+
+Lemma starstar_general (t: term):
+  t * * == t*
+.
+Proof.
+  replace (t * *)
+    with (term_subst (subst2 t t) ($a1 * *))
+    by force_subst_check.
+  replace (t*)
+    with (term_subst (subst2 t t) ($a1*))
+    by force_subst_check.
+  eapply term_subst_preserve, starstar.
+Qed.
+
+Lemma slide_general (t1 t2: term):
+  (t1 ;; t2)* ;; t1 == t1 ;; (t2 ;; t1)*
+.
+Proof.
+  replace ((t1 ;; t2)* ;; t1)
+    with (term_subst (subst2 t1 t2) (($a1 ;; $a2)* ;; $a1))
+    by force_subst_check.
+  replace (t1 ;; (t2 ;; t1)*)
+    with (term_subst (subst2 t1 t2) ($a1 ;; ($a2 ;; $a1)*))
+    by force_subst_check.
+  eapply term_subst_preserve, slide.
+Qed.
