@@ -78,7 +78,7 @@ Notation "m <*> v" := (matrix_vector_product m v) (at level 40).
 Reserved Notation "t1 == t2" (at level 70).
 Reserved Notation "t1 <= t2" (at level 70).
 
-Polymorphic Inductive term_equiv: term -> term -> Prop :=
+Inductive term_equiv: term -> term -> Prop :=
 | ERefl: forall t, t == t
 | ESym: forall t1 t2, t1 == t2 -> t2 == t1
 | ETrans: forall t1 t2 t3, t1 == t2 -> t2 == t3 -> t1 == t3
