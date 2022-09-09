@@ -6837,3 +6837,28 @@ Proof.
   - reflexivity.
   - typeclasses eauto.
 Qed.
+
+Lemma term_equiv_complete
+  (t1 t2: term)
+:
+  (forall w, term_matches t1 w <-> term_matches t2 w) ->
+  t1 == t2
+.
+Proof.
+  intros.
+  rewrite term_normal_form_left with (t2 := t2) at 1; symmetry.
+  rewrite term_normal_form_right with (t1 := t1) at 1; symmetry.
+  erewrite filter_ext.
+  - reflexivity.
+  - intros m.
+    apply ZMicromega.eq_true_iff_eq.
+    split; intros.
+    + apply kleene_interp_witness_construct in H1.
+      destruct H1 as [w [? ?]]; subst.
+      apply kleene_interp_witness_apply.
+      intuition.
+    + apply kleene_interp_witness_construct in H1.
+      destruct H1 as [w [? ?]]; subst.
+      apply kleene_interp_witness_apply.
+      intuition.
+Qed.
