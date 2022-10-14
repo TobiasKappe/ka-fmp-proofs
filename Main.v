@@ -15,7 +15,8 @@ Section Main.
   Definition term_interp_finite_equiv
     (t1 t2: term)
   :=
-    forall {X: Type} `{Finite X} (k: kleene_algebra X) (f: A -> X),
+    forall (X: Type) (k: kleene_algebra X) (f: A -> X),
+      Finite X ->
       kleene_interp k f t1 = kleene_interp k f t2
   .
 

@@ -49,6 +49,7 @@ Section AntimirovTypes.
       forall (t: term),
       derivative (t *)
   .
+  Derive Signature for derivative.
 
   Inductive initial:
     forall {t: term},

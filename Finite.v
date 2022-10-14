@@ -669,7 +669,7 @@ Section FiniteFixpoint.
   .
 
   Class PartialOrderZero (X: Type) := {
-    partial_order_rel :> X -> X -> Prop;
+    partial_order_rel : X -> X -> Prop;
     partial_order_refl:
       forall (x1: X),
       partial_order_rel x1 x1;
