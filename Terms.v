@@ -332,6 +332,32 @@ Section TermSum.
         apply H.
         now right.
   Qed.
+
+  Lemma sum_lequiv_containment
+    (l1 l2: list term)
+  :
+    incl l1 l2 ->
+    sum l1 <= sum l2
+  .
+  Proof.
+    intros.
+    apply sum_lequiv_all; intros.
+    apply sum_lequiv_member.
+    now apply H.
+  Qed.
+
+  Lemma sum_equiv_containment
+    (l1 l2: list term)
+  :
+    incl l1 l2 ->
+    incl l2 l1 ->
+    sum l1 == sum l2
+  .
+  Proof.
+    intros.
+    apply term_lequiv_squeeze;
+    now apply sum_lequiv_containment.
+  Qed.
 End TermSum.
 
 Section TermMatches.

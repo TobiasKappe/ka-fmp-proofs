@@ -57,4 +57,26 @@ Section BooleanDisjunction.
         * apply IHl.
           now destruct H.
   Qed.
+
+  Lemma disj_false
+    (l: list bool)
+  :
+    disj l = false <->
+    forall (x: bool), In x l -> x = false
+  .
+  Proof.
+    split; intros.
+    - induction l.
+      + destruct H0.
+      + autorewrite with disj in H.
+        apply Bool.orb_false_iff in H.
+        destruct H, H0.
+        * congruence.
+        * now apply IHl.
+    - induction l;
+      autorewrite with disj.
+      + reflexivity.
+      + apply Bool.orb_false_iff.
+        firstorder.
+  Qed.
 End BooleanDisjunction.

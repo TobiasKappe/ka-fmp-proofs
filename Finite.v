@@ -455,6 +455,70 @@ Section FiniteSubset.
   Qed.
 End FiniteSubset.
 
+Section FiniteCoproduct.
+  Global Program Instance finite_coproduct
+    (X Y: Type)
+    `{Finite X}
+    `{Finite Y}
+  :
+    Finite (X + Y)
+  := {|
+    finite_enum := map inl finite_enum ++ map inr finite_enum
+  |}.
+  Next Obligation.
+    destruct x1, x2.
+    - destruct (finite_dec x x0).
+      + left; congruence.
+      + right; congruence.
+    - now right.
+    - now right.
+    - destruct (finite_dec y y0).
+      + left; congruence.
+      + right; congruence.
+  Qed.
+  Next Obligation.
+    apply in_app_iff.
+    repeat rewrite in_map_iff.
+    destruct x.
+    - left; exists x; intuition.
+    - right; exists y; intuition.
+  Qed.
+  Next Obligation.
+    apply NoDup_app.
+    - apply NoDup_map.
+      + intros; now inversion H1.
+      + apply finite_nodup.
+    - apply NoDup_map.
+      + intros; now inversion H1.
+      + apply finite_nodup.
+    - intros; intro.
+      rewrite in_map_iff in H1, H2.
+      destruct H1 as [x' [? _]].
+      destruct H2 as [x'' [? _]].
+      now subst.
+    - intros; intro.
+      rewrite in_map_iff in H1, H2.
+      destruct H1 as [x' [? _]].
+      destruct H2 as [x'' [? _]].
+      now subst.
+  Qed.
+End FiniteCoproduct.
+
+Section FiniteUnit.
+  Global Program Instance finite_unit : Finite unit := {|
+    finite_enum := tt :: nil;
+  |}.
+  Next Obligation.
+    destruct x1, x2; now left.
+  Qed.
+  Next Obligation.
+    destruct x; now left.
+  Qed.
+  Next Obligation.
+    constructor; intuition constructor.
+  Qed.
+End FiniteUnit.
+
 Section FiniteProduct.
   (* From Leapfrog *)
   Lemma NoDup_prod:
