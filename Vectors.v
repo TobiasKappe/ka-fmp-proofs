@@ -1,7 +1,10 @@
 Require Import Coq.Setoids.Setoid.
 Require Import Coq.Program.Equality.
+Require Import Coq.Lists.List.
+Require Import Coq.Logic.FunctionalExtensionality.
 
 Require Import KA.Finite.
+Require Import KA.Booleans.
 Require Import KA.Terms.
 Require Import KA.Scope.
 Local Open Scope ka_scope.
@@ -420,3 +423,213 @@ Section VectorProperties.
     - apply H0.
   Qed.
 End VectorProperties.
+
+Section VectorBool.
+  Context {A: Type}.
+  Notation vector := (vector A).
+  Notation term := (term A).
+
+  Global Program Instance matrix_finite
+    (X Y: Type)
+    `{Finite X}
+    `{Finite Y}
+  :
+    Finite (X -> Y -> bool)
+  := {|
+    finite_enum := map curry finite_enum
+  |}.
+  Next Obligation.
+    destruct (finite_dec (uncurry x1) (uncurry x2)).
+    - left.
+      extensionality x;
+      extensionality y.
+      replace x1 with (curry (uncurry x1)) by reflexivity.
+      replace x2 with (curry (uncurry x2)) by reflexivity.
+      now rewrite e.
+    - right.
+      contradict n.
+      extensionality xy.
+      destruct xy; simpl.
+      now rewrite n.
+  Defined.
+  Next Obligation.
+    replace x with (curry (uncurry x)) by reflexivity.
+    apply in_map_iff.
+    exists (uncurry x).
+    intuition.
+    replace finite_subsets
+      with (@finite_enum (prod X Y -> bool) _)
+      by reflexivity.
+    apply finite_cover.
+  Qed.
+  Next Obligation.
+    apply NoDup_map.
+    - intros.
+      extensionality xy.
+      destruct xy.
+      replace x with (uncurry (curry x)).
+      replace y with (uncurry (curry y)).
+      + simpl.
+        now rewrite H1.
+      + extensionality xy.
+        now destruct xy.
+      + extensionality xy.
+        now destruct xy.
+    - replace finite_subsets
+        with (@finite_enum (prod X Y -> bool) _)
+        by reflexivity.
+      apply finite_nodup.
+  Qed.
+
+  Definition vector_inner_product_bool
+    {X: Type}
+    `{Finite X}
+    (v1 v2: X -> bool)
+  :
+    bool
+  :=
+    disj (map (fun x => andb (v1 x) (v2 x)) finite_enum)
+  .
+
+  Definition matrix_product_bool
+    {X: Type}
+    `{Finite X}
+    (m1 m2: X -> X -> bool)
+    (x1 x2: X)
+  :
+    bool
+  :=
+    vector_inner_product_bool (m1 x1) (fun x => m2 x x2)
+  .
+
+  Lemma matrix_product_characterise
+    {Q: Type}
+    `{Finite Q}
+    (m1 m2: Q -> Q -> bool)
+    (q1 q2: Q)
+  :
+    matrix_product_bool m1 m2 q1 q2 = true <->
+    exists (q3: Q), m1 q1 q3 = true /\ m2 q3 q2 = true
+  .
+  Proof.
+    unfold matrix_product_bool.
+    unfold vector_inner_product_bool.
+    rewrite disj_true.
+    rewrite in_map_iff.
+    setoid_rewrite Bool.andb_true_iff.
+    split; intros.
+    - destruct H0 as [q3 [? ?]].
+      now exists q3.
+    - destruct H0 as [q3 [? ?]].
+      exists q3; intuition.
+  Qed.
+
+  Lemma matrix_product_bool_unit_left
+    {Q: Type}
+    `{Finite Q}
+    (m: Q -> Q -> bool)
+  :
+    matrix_product_bool finite_eqb m = m
+  .
+  Proof.
+    extensionality q1;
+    extensionality q2.
+    destruct (m _ _) eqn:?.
+    - apply matrix_product_characterise.
+      exists q1; intuition.
+      unfold finite_eqb.
+      now destruct (finite_dec _ _).
+    - apply Bool.not_true_iff_false.
+      apply Bool.not_true_iff_false in Heqb.
+      contradict Heqb.
+      apply matrix_product_characterise in Heqb.
+      destruct Heqb as [q3 [? ?]].
+      unfold finite_eqb in H0.
+      destruct (finite_dec _ _).
+      + now subst.
+      + discriminate.
+  Qed.
+
+  Lemma matrix_product_bool_unit_right
+    {Q: Type}
+    `{Finite Q}
+    (m: Q -> Q -> bool)
+  :
+    matrix_product_bool m finite_eqb = m
+  .
+  Proof.
+    extensionality q1;
+    extensionality q2.
+    destruct (m _ _) eqn:?.
+    - apply matrix_product_characterise.
+      exists q2; intuition.
+      unfold finite_eqb.
+      now destruct (finite_dec _ _).
+    - apply Bool.not_true_iff_false.
+      apply Bool.not_true_iff_false in Heqb.
+      contradict Heqb.
+      apply matrix_product_characterise in Heqb.
+      destruct Heqb as [q3 [? ?]].
+      unfold finite_eqb in H1.
+      destruct (finite_dec _ _).
+      + now subst.
+      + discriminate.
+  Qed.
+
+  Lemma matrix_product_bool_associative
+    {Q: Type}
+    `{Finite Q}
+    (m1 m2 m3: Q -> Q -> bool)
+  :
+    matrix_product_bool (matrix_product_bool m1 m2) m3 =
+    matrix_product_bool m1 (matrix_product_bool m2 m3)
+  .
+  Proof.
+    extensionality q1;
+    extensionality q2.
+    destruct (matrix_product_bool _ _ _) eqn:?; symmetry.
+    - apply matrix_product_characterise in Heqb.
+      destruct Heqb as [q3 [? ?]].
+      apply matrix_product_characterise in H0.
+      destruct H0 as [q4 [? ?]].
+      apply matrix_product_characterise.
+      exists q4; intuition.
+      apply matrix_product_characterise.
+      exists q3; intuition.
+    - apply Bool.not_true_iff_false.
+      apply Bool.not_true_iff_false in Heqb.
+      contradict Heqb.
+      apply matrix_product_characterise in Heqb.
+      destruct Heqb as [q3 [? ?]].
+      apply matrix_product_characterise in H1.
+      destruct H1 as [q4 [? ?]].
+      apply matrix_product_characterise.
+      exists q4; intuition.
+      apply matrix_product_characterise.
+      exists q3; intuition.
+  Qed.
+
+  Definition vector_shift_both
+    {Q: Type}
+    `{Finite Q}
+    (v: vector (prod (Q -> Q -> bool) (Q -> Q -> bool)))
+    (h: Q -> Q -> bool)
+    (fg: prod (Q -> Q -> bool) (Q -> Q -> bool))
+  :
+    term
+  :=
+    v (matrix_product_bool h (fst fg), matrix_product_bool h (snd fg))
+  .
+
+  Definition vector_shift_single
+    {Q: Type}
+    `{Finite Q}
+    (v: vector (prod (Q -> Q -> bool) (Q -> Q -> bool)))
+    (h: Q -> Q -> bool)
+    (fg: prod (Q -> Q -> bool) (Q -> Q -> bool))
+  :
+    term
+  :=
+    v (fst fg, matrix_product_bool (snd fg) h)
+  .
+End VectorBool.

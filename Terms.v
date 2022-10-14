@@ -1,7 +1,10 @@
 From Equations Require Import Equations.
+Require Import Coq.Program.Equality.
 Require Import Coq.Setoids.Setoid.
 Require Import Coq.Lists.List.
+Require Import Coq.btauto.Btauto.
 
+Require Import KA.Finite.
 Require Import KA.Scope.
 Local Open Scope ka_scope.
 
@@ -330,3 +333,343 @@ Section TermSum.
         now right.
   Qed.
 End TermSum.
+
+Section TermMatches.
+  Context {A: Type}.
+  Notation term := (term A).
+
+  Inductive term_matches: term -> list A -> Prop :=
+  | MatchOne:
+      term_matches 1 nil
+  | MatchLetter:
+      forall (a: A),
+      term_matches ($ a) (a :: nil)
+  | MatchPlusLeft:
+      forall (w: list A) (t1 t2: term),
+      term_matches t1 w ->
+      term_matches (t1 + t2) w
+  | MatchPlusRight:
+      forall (w: list A) (t1 t2: term),
+      term_matches t2 w ->
+      term_matches (t1 + t2) w
+  | MatchTimes:
+      forall (w1 w2: list A) (t1 t2: term),
+      term_matches t1 w1 ->
+      term_matches t2 w2 ->
+      term_matches (t1 ;; t2) (w1 ++ w2)
+  | MatchStarBase:
+      forall (t: term),
+      term_matches (t*) nil
+  | MatchStarStep:
+      forall (t: term) (w1 w2: list A),
+      term_matches t w1 ->
+      term_matches (t*) w2 ->
+      term_matches (t*) (w1 ++ w2)
+  .
+
+  Lemma term_matches_star_split (t: term) (w: list A):
+    term_matches (t*) w <->
+    exists (l: list (list A)),
+      w = concat l /\
+      forall (w': list A), In w' l -> term_matches t w'
+  .
+  Proof.
+    split; intros.
+    - dependent induction H.
+      + now exists nil.
+      + specialize (IHterm_matches2 t eq_refl).
+        destruct IHterm_matches2 as [l [? ?]]; subst.
+        exists (w1 :: l).
+        intuition.
+        destruct H1.
+        * now subst.
+        * now apply H2.
+    - destruct H as [l [? ?]]; subst.
+      induction l; simpl.
+      + apply MatchStarBase.
+      + apply MatchStarStep.
+        * apply H0.
+          now left.
+        * apply IHl; intros.
+          apply H0.
+          now right.
+  Qed.
+
+  Lemma term_equiv_sound (t1 t2: term) (w: list A):
+    t1 == t2 ->
+    term_matches t1 w <-> term_matches t2 w
+  .
+  Proof.
+    intros.
+    revert w; dependent induction H; intros.
+    - reflexivity.
+    - now symmetry.
+    - now transitivity (term_matches t2 w).
+    - split; intros.
+      + dependent destruction H1.
+        * apply MatchPlusLeft; intuition.
+        * apply MatchPlusRight; intuition.
+      + dependent destruction H1.
+        * apply MatchPlusLeft; intuition.
+        * apply MatchPlusRight; intuition.
+    - split; intros.
+      + dependent destruction H1.
+        apply MatchTimes; intuition.
+      + dependent destruction H1.
+        apply MatchTimes; intuition.
+    - split; intros.
+      + dependent induction H0.
+        * apply MatchStarBase.
+        * apply MatchStarStep; intuition.
+      + dependent induction H0.
+        * apply MatchStarBase.
+        * apply MatchStarStep; intuition.
+    - split; intros.
+      + now dependent destruction H.
+      + now apply MatchPlusLeft.
+    - split; intros.
+      + dependent destruction H.
+        * now apply MatchPlusRight.
+        * now apply MatchPlusLeft.
+      + dependent destruction H.
+        * now apply MatchPlusRight.
+        * now apply MatchPlusLeft.
+    - split; intros.
+      + dependent destruction H; [| dependent destruction H].
+        * now apply MatchPlusLeft, MatchPlusLeft.
+        * now apply MatchPlusLeft, MatchPlusRight.
+        * now apply MatchPlusRight.
+      + dependent destruction H; [dependent destruction H|].
+        * now apply MatchPlusLeft.
+        * now apply MatchPlusRight, MatchPlusLeft.
+        * now apply MatchPlusRight, MatchPlusRight.
+    - split; intros.
+      + now dependent destruction H.
+      + now apply MatchPlusLeft.
+    - split; intros.
+      + dependent destruction H.
+        dependent destruction H0.
+        rewrite app_assoc.
+        apply MatchTimes; auto.
+        now apply MatchTimes.
+      + dependent destruction H.
+        dependent destruction H.
+        rewrite <- app_assoc.
+        apply MatchTimes; auto.
+        now apply MatchTimes.
+    - split; intros.
+      + dependent destruction H.
+        dependent destruction H0.
+        now rewrite app_nil_r.
+      + rewrite <- app_nil_r.
+        apply MatchTimes; auto.
+        apply MatchOne.
+    - split; intros.
+      + dependent destruction H.
+        dependent destruction H.
+        now rewrite app_nil_l.
+      + rewrite <- app_nil_l.
+        apply MatchTimes; auto.
+        apply MatchOne.
+    - split; intros.
+      + dependent destruction H.
+        dependent destruction H0.
+      + dependent destruction H.
+    - split; intros.
+      + dependent destruction H.
+        dependent destruction H.
+      + dependent destruction H.
+    - split; intros.
+      + dependent destruction H.
+        dependent destruction H0.
+        * apply MatchPlusLeft.
+          now apply MatchTimes.
+        * apply MatchPlusRight.
+          now apply MatchTimes.
+      + dependent destruction H.
+        * dependent destruction H.
+          apply MatchTimes; auto.
+          now apply MatchPlusLeft.
+        * dependent destruction H.
+          apply MatchTimes; auto.
+          now apply MatchPlusRight.
+    - split; intros.
+      + dependent destruction H.
+        dependent destruction H.
+        * apply MatchPlusLeft.
+          now apply MatchTimes.
+        * apply MatchPlusRight.
+          now apply MatchTimes.
+      + dependent destruction H.
+        * dependent destruction H.
+          apply MatchTimes; auto.
+          now apply MatchPlusLeft.
+        * dependent destruction H.
+          apply MatchTimes; auto.
+          now apply MatchPlusRight.
+    - split; intros.
+      + dependent destruction H.
+        * now apply MatchPlusRight, MatchOne.
+        * now apply MatchPlusLeft, MatchTimes.
+      + dependent destruction H.
+        * dependent destruction H.
+          now apply MatchStarStep.
+        * dependent destruction H.
+          apply MatchStarBase.
+    - split; intros.
+      + dependent destruction H0; auto.
+        dependent destruction H0.
+        apply term_matches_star_split in H0_.
+        destruct H0_ as [l [? ?]].
+        subst; induction l; simpl.
+        * apply IHterm_equiv.
+          now apply MatchPlusLeft, MatchPlusRight.
+        * apply IHterm_equiv.
+          apply MatchPlusLeft, MatchPlusLeft.
+          rewrite <- app_assoc.
+          apply MatchTimes; intuition.
+      + now apply MatchPlusRight.
+  Qed.
+
+  Lemma term_matches_sum (l: list term) (w: list A):
+    term_matches (sum l) w <->
+    exists (t: term),
+      In t l /\ term_matches t w
+  .
+  Proof.
+    induction l; autorewrite with sum.
+    - split; intros.
+      + dependent destruction H.
+      + now destruct H as [t [? ?]].
+    - split; intros.
+      + dependent destruction H.
+        * exists a; intuition.
+        * apply IHl in H.
+          destruct H as [t [? ?]].
+          exists t; intuition.
+      + destruct H as [t [[? | ?] ?]].
+        * subst.
+          now apply MatchPlusLeft.
+        * apply MatchPlusRight.
+          apply IHl.
+          now exists t.
+  Qed.
+
+  Lemma term_matches_prepend_letter (t: term) (a: A):
+    ~ term_matches ($a ;; t) nil
+  .
+  Proof.
+    intro.
+    dependent destruction H.
+    dependent destruction H.
+    rewrite <- app_comm_cons in x.
+    inversion x.
+  Qed.
+End TermMatches.
+
+Section TermEmpty.
+  Context {A: Type}.
+  Context `{Finite A}.
+  Notation term := (term A).
+
+  Equations term_empty (t: term): bool := {
+    term_empty 0 := true;
+    term_empty 1 := false;
+    term_empty ($ a) := false;
+    term_empty (t1 + t2) := term_empty t1 && term_empty t2;
+    term_empty (t1 ;; t2) := term_empty t1 || term_empty t2;
+    term_empty (t*) := false
+  }.
+
+  Lemma term_empty_dec (t: term):
+    term_empty t = false <-> exists w, term_matches t w
+  .
+  Proof.
+    induction t;
+    autorewrite with term_empty.
+    - intuition.
+      destruct H0 as [w ?].
+      dependent destruction H0.
+    - intuition.
+      exists nil.
+      apply MatchOne.
+    - intuition.
+      exists (a :: nil).
+      apply MatchLetter.
+    - rewrite Bool.andb_false_iff.
+      rewrite IHt1, IHt2.
+      split; intros.
+      + destruct H0.
+        * destruct H0 as [w ?].
+          exists w.
+          now apply MatchPlusLeft.
+        * destruct H0 as [w ?].
+          exists w.
+          now apply MatchPlusRight.
+      + destruct H0 as [w ?].
+        dependent destruction H0.
+        * left; now exists w.
+        * right; now exists w.
+    - rewrite Bool.orb_false_iff.
+      rewrite IHt1, IHt2.
+      split; intros.
+      + destruct H0.
+        destruct H0 as [w1 ?], H1 as [w2 ?].
+        exists (w1 ++ w2).
+        now apply MatchTimes.
+      + destruct H0 as [w ?].
+        dependent destruction H0.
+        split.
+        * now exists w1.
+        * now exists w2.
+    - intuition.
+      exists nil.
+      apply MatchStarBase.
+  Qed.
+
+  Lemma term_empty_zero (t: term):
+    term_empty t = true ->
+    t == 0
+  .
+  Proof.
+    induction t;
+    autorewrite with term_empty;
+    intros.
+    - reflexivity.
+    - discriminate.
+    - discriminate.
+    - rewrite Bool.andb_true_iff in H0.
+      destruct H0.
+      rewrite IHt1, IHt2; auto.
+      apply term_lequiv_refl.
+    - rewrite Bool.orb_true_iff in H0.
+      destruct H0.
+      + rewrite IHt1 by auto.
+        now rewrite ETimesZeroRight.
+      + rewrite IHt2 by auto.
+        now rewrite ETimesZeroLeft.
+    - discriminate.
+  Qed.
+
+  Lemma term_empty_invariant (t1 t2: term):
+    t1 == t2 ->
+    term_empty t1 = term_empty t2
+  .
+  Proof.
+    intros.
+    dependent induction H0;
+    autorewrite with term_empty in *;
+    try congruence;
+    try rewrite <- IHterm_equiv;
+    btauto.
+  Qed.
+
+  Lemma term_zero_empty (t: term):
+    t == 0 ->
+    term_empty t = true
+  .
+  Proof.
+    intros.
+    now apply term_empty_invariant in H0.
+  Qed.
+End TermEmpty.
