@@ -153,3 +153,82 @@ End TermEquivalence.
 
 Notation "t1 == t2" := (term_equiv t1 t2) (at level 70) : ka_scope.
 Notation "t1 <= t2" := (t1 + t2 == t2) (at level 70) : ka_scope.
+
+Ltac fold_term_lequiv :=
+  match goal with
+  | |- ?lhs <= ?rhs => fold (term_lequiv lhs rhs)
+  end
+.
+
+Section TermProperties.
+  Context {A: Type}.
+  Notation term := (term A).
+
+  Lemma term_lequiv_split_left
+    (t1 t2 t3: term)
+  :
+    t1 <= t2 -> t1 <= t2 + t3
+  .
+  Proof.
+    intros.
+    rewrite <- H.
+    repeat rewrite EPlusAssoc.
+    now rewrite EPlusIdemp.
+  Qed.
+
+  Lemma term_lequiv_split_right
+    (t1 t2 t3: term)
+  :
+    t1 <= t3 -> t1 <= t2 + t3
+  .
+  Proof.
+    intros.
+    rewrite <- H.
+    rewrite EPlusAssoc with (t1 := t2).
+    rewrite EPlusComm with (t1 := t2).
+    repeat rewrite EPlusAssoc.
+    now rewrite EPlusIdemp.
+  Qed.
+
+  Lemma term_lequiv_split
+    (t1 t2 t3: term)
+  :
+    t1 <= t3 -> t2 <= t3 -> t1 + t2 <= t3
+  .
+  Proof.
+    intros.
+    rewrite <- H, <- H0.
+    rewrite EPlusAssoc with (t1 := t1).
+    rewrite EPlusAssoc with (t1 := (t1 + t2)).
+    now rewrite EPlusIdemp.
+  Qed.
+
+  Global Add Morphism plus
+    with signature term_lequiv ==> term_lequiv ==> (@term_lequiv A)
+    as plus_mor_mono
+  .
+  Proof.
+    unfold term_lequiv; intros.
+    apply term_lequiv_split.
+    - rewrite <- H.
+      repeat apply term_lequiv_split_left.
+      apply term_lequiv_refl.
+    - rewrite <- H0.
+      apply term_lequiv_split_right.
+      apply term_lequiv_split_left.
+      apply term_lequiv_refl.
+  Qed.
+
+  Global Add Morphism times
+    with signature term_lequiv ==> term_lequiv ==> (@term_lequiv A)
+    as times_mor_mono
+  .
+  Proof.
+    unfold term_lequiv; intros.
+    rewrite <- H, <- H0.
+    rewrite EDistributeLeft.
+    repeat rewrite EDistributeRight.
+    repeat apply term_lequiv_split_left.
+    apply term_lequiv_refl.
+  Qed.
+End TermProperties.
