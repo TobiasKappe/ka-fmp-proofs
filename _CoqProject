@@ -10,5 +10,6 @@ Solve.v
 Antimirov.v
 Automata.v
 Structure.v
-proof.v
+Main.v
+Derived.v
 

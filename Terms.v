@@ -698,4 +698,99 @@ Section TermEmpty.
     intros.
     now apply term_empty_invariant in H0.
   Qed.
+
+  Equations term_repeat
+    (n: nat)
+    (t: term)
+  :
+    term
+  := {
+    term_repeat 0%nat t := 1;
+    term_repeat (S n) t := t ;; term_repeat n t;
+  }.
+
+  Lemma term_matches_star_repeat
+    (t: term)
+    (w: list A)
+  :
+    term_matches (t*) w <->
+    exists n, term_matches (term_repeat n t) w
+  .
+  Proof.
+    split; intros.
+    - dependent induction H0.
+      + exists 0%nat.
+        autorewrite with term_repeat.
+        apply MatchOne.
+      + destruct (IHterm_matches2 H t eq_refl) as [n ?].
+        exists (S n).
+        autorewrite with term_repeat.
+        now apply MatchTimes.
+    - destruct H0 as [n ?].
+      revert w H0; induction n; intros;
+      autorewrite with term_repeat in H0.
+      + dependent destruction H0.
+        apply MatchStarBase.
+      + dependent destruction H0.
+        apply MatchStarStep; auto.
+  Qed.
+
+  Lemma term_lequiv_sound
+    (t1 t2: term)
+    (w: list A)
+  :
+    t1 <= t2 ->
+    term_matches t1 w ->
+    term_matches t2 w
+  .
+  Proof.
+    intros.
+    apply term_equiv_sound with (t2 := t1 + t2).
+    + now symmetry.
+    + now apply MatchPlusLeft.
+  Qed.
 End TermEmpty.
+
+Section TermSubst.
+  Context {A: Type}.
+  Notation term := (term A).
+
+  Equations term_subst (f: A -> term) (t: term) : term := {
+    term_subst f 0 := 0;
+    term_subst f 1 := 1;
+    term_subst f ($ a) := f a;
+    term_subst f (t1 + t2) := term_subst f t1 + term_subst f t2;
+    term_subst f (t1 ;; t2) := term_subst f t1 ;; term_subst f t2;
+    term_subst f (t*) := (term_subst f t)*
+  }.
+
+  Lemma term_subst_preserve (f: A -> term) (t1 t2: term):
+    t1 == t2 ->
+    term_subst f t1 == term_subst f t2
+  .
+  Proof.
+    intros.
+    dependent induction H;
+    autorewrite with term_subst.
+    - reflexivity.
+    - now symmetry.
+    - now transitivity (term_subst f t2).
+    - now rewrite IHterm_equiv1, IHterm_equiv2.
+    - now rewrite IHterm_equiv1, IHterm_equiv2.
+    - now rewrite IHterm_equiv.
+    - apply EPlusIdemp.
+    - apply EPlusComm.
+    - apply EPlusAssoc.
+    - apply EPlusUnit.
+    - apply ETimesAssoc.
+    - apply ETimesUnitRight.
+    - apply ETimesUnitLeft.
+    - apply ETimesZeroLeft.
+    - apply ETimesZeroRight.
+    - apply EDistributeLeft.
+    - apply EDistributeRight.
+    - apply EStarLeft.
+    - autorewrite with term_subst in IHterm_equiv.
+      now apply EFixLeft.
+  Qed.
+End TermSubst.
