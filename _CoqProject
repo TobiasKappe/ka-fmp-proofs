@@ -1,9 +1,12 @@
 -R . KA
 
 Scope.v
+Utilities.v
+Booleans.v
 Finite.v
 Terms.v
 Vectors.v
 Solve.v
+Antimirov.v
 proof.v
 

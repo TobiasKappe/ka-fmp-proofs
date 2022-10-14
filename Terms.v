@@ -1,5 +1,6 @@
 From Equations Require Import Equations.
 Require Import Coq.Setoids.Setoid.
+Require Import Coq.Lists.List.
 
 Require Import KA.Scope.
 Local Open Scope ka_scope.
@@ -247,3 +248,46 @@ Section TermProperties.
     reflexivity.
   Qed.
 End TermProperties.
+
+Section TermSum.
+  Context {A: Type}.
+  Notation term := (term A).
+
+  Equations sum (l: list term): term := {
+    sum nil := 0;
+    sum (t :: l) := t + sum l;
+  }.
+
+  Lemma sum_split (l1 l2: list term):
+    sum (l1 ++ l2) == sum l1 + sum l2
+  .
+  Proof.
+    revert l2; induction l1; intros.
+    - autorewrite with sum.
+      now rewrite EPlusComm, EPlusUnit, app_nil_l.
+    - rewrite <- app_comm_cons.
+      autorewrite with sum.
+      rewrite <- EPlusAssoc.
+      now rewrite IHl1.
+  Qed.
+
+  Lemma sum_distribute_right (l: list term) (t: term):
+    sum (map (fun x => x ;; t) l) == sum l ;; t
+  .
+  Proof.
+    induction l; simpl; autorewrite with sum.
+    - now rewrite ETimesZeroRight.
+    - rewrite IHl.
+      now rewrite EDistributeRight.
+  Qed.
+
+  Lemma sum_distribute_left (l: list term) (t: term):
+    sum (map (fun x => t ;; x) l) == t ;; sum l
+  .
+  Proof.
+    induction l; simpl; autorewrite with sum.
+    - now rewrite ETimesZeroLeft.
+    - rewrite IHl.
+      now rewrite EDistributeLeft.
+  Qed.
+End TermSum.
