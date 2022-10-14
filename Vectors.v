@@ -1,6 +1,7 @@
 Require Import Coq.Setoids.Setoid.
 Require Import Coq.Program.Equality.
 
+Require Import KA.Finite.
 Require Import KA.Terms.
 Require Import KA.Scope.
 Local Open Scope ka_scope.
@@ -8,16 +9,6 @@ Local Open Scope ka_scope.
 Section Vectors.
   Variable (A: Type).
   Notation term := (term A).
-
-  Inductive position: nat -> Type :=
-  | PHere:
-      forall {n: nat},
-      position (S n)
-  | PThere:
-      forall {n: nat}
-             (v: position n),
-      position (S n)
-  .
 
   Definition vector (Q: Type) := Q -> term.
 
@@ -80,6 +71,50 @@ Section VectorOperations.
     (q: Q)
   :=
     v q ;; t
+  .
+
+  Definition vector_index
+    {X: Type}
+    `{Finite X}
+    (v: vector X)
+    (p: position (length finite_enum))
+  :
+    term
+  :=
+    v (list_lookup p)
+  .
+
+  Definition vector_lookup
+    {X: Type}
+    `{Finite X}
+    (v: vector (position (length finite_enum)))
+    (x: X)
+  :
+    term
+  :=
+    v (list_index x)
+  .
+
+  Definition matrix_index
+    {X: Type}
+    `{Finite X}
+    (m: matrix X)
+    (p p': position (length finite_enum))
+  :
+    term
+  :=
+    m (list_lookup p) (list_lookup p')
+  .
+
+  Definition matrix_lookup
+    {X: Type}
+    `{Finite X}
+    (m: matrix (position (length finite_enum)))
+    (x x': X)
+  :
+    term
+  :=
+    m (list_index x) (list_index x')
   .
 End VectorOperations.
 
@@ -348,4 +383,25 @@ Section VectorProperties.
       rewrite ETimesAssoc.
       reflexivity.
   Qed.
-  End VectorProperties.
+
+  Lemma vector_lequiv_adjunction
+    {X: Type}
+    `{Finite X}
+    (v1: vector (position (length finite_enum)))
+    (v2: vector X)
+  :
+    v1 <== vector_index v2 <-> vector_lookup v1 <== v2
+  .
+  Proof.
+    split; intros.
+    - intro x.
+      unfold vector_lookup.
+      rewrite <- list_lookup_index at 2.
+      rewrite <- list_lookup_index at 3.
+      apply H0.
+    - intro p.
+      unfold vector_index.
+      rewrite <- list_index_lookup at 1.
+      apply H0.
+  Qed.
+End VectorProperties.

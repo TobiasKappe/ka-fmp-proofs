@@ -1,5 +1,6 @@
 Require Import Coq.Program.Equality.
 
+Require Import KA.Finite.
 Require Import KA.Terms.
 Require Import KA.Vectors.
 Require Import KA.Scope.
@@ -19,6 +20,36 @@ End System.
 
 Arguments smat {A} {Q}.
 Arguments svec {A} {Q}.
+
+Section SystemOperations.
+  Context {A: Type}.
+  Notation term := (term A).
+  Notation matrix := (matrix A).
+  Notation vector := (vector A).
+  Notation system := (system A).
+
+  Definition system_index
+    {X: Type}
+    `{Finite X}
+    (sys: system X)
+  :
+    system (position (length finite_enum))
+  := {|
+    smat := matrix_index (smat sys);
+    svec := vector_index (svec sys);
+  |}.
+
+  Definition system_lookup
+    {X: Type}
+    `{Finite X}
+    (sys: system (position (length finite_enum)))
+  :
+    system X
+  := {|
+    smat := matrix_lookup (smat sys);
+    svec := vector_lookup (svec sys);
+  |}.
+End SystemOperations.
 
 Section SolutionDefinition.
   Context {A: Type}.
@@ -103,6 +134,16 @@ Section SolutionAlgorithm.
       (smat sys PHere PHere)* ;;
         (svec sys PHere + (# (smat sys PHere)) ** smaller_solution);
   }.
+
+  Definition compute_solution
+    {X: Type}
+    `{Finite X}
+    (sys: system X)
+  :
+    vector X
+  :=
+    vector_lookup (compute_solution_nat (system_index sys))
+  .
 End SolutionAlgorithm.
 
 Section SolutionCorrect.
@@ -387,5 +428,53 @@ Section SolutionCorrect.
       apply compute_solution_nat_solution_nat_one.
     - setoid_rewrite solution_iff_solution_nat.
       apply compute_solution_nat_least.
+  Qed.
+
+  Lemma solution_finite_to_nat
+    {X: Type}
+    `{Finite X}
+    (sys: system X)
+    (scale: term)
+    (v: vector X)
+  :
+    solution sys scale v ->
+    solution (system_index sys) scale (vector_index v)
+  .
+  Proof.
+    split; intros; simpl; apply H0.
+  Qed.
+
+  Lemma solution_nat_to_finite
+    {X: Type}
+    `{Finite X}
+    (sys: system (position (length finite_enum)))
+    (scale: term)
+    (v: vector (position (length (finite_enum))))
+  :
+    solution sys scale v ->
+    solution (system_lookup sys) scale (vector_lookup v)
+  .
+  Proof.
+    split; intros; simpl; apply H0.
+  Qed.
+
+  Lemma compute_solution_solution
+    {X: Type}
+    `{Finite X}
+    (sys: system X)
+    (scale: term)
+  :
+    solution sys scale (compute_solution sys ;;; scale)
+  .
+  Proof.
+    split; intros.
+    - replace (smat sys q q') with (smat (system_index sys) (list_index q) (list_index q')).
+      + apply compute_solution_nat_least_solution.
+      + simpl; unfold matrix_index.
+        now repeat rewrite list_lookup_index.
+    - replace (svec sys q) with (svec (system_index sys) (list_index q)).
+      + apply compute_solution_nat_least_solution.
+      + simpl; unfold vector_index.
+        now rewrite list_lookup_index.
   Qed.
 End SolutionCorrect.

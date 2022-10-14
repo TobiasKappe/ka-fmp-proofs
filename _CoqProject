@@ -1,6 +1,7 @@
 -R . KA
 
 Scope.v
+Finite.v
 Terms.v
 Vectors.v
 Solve.v
