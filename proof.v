@@ -1,260 +1,16 @@
 From Equations Require Import Equations.
 Require Import Coq.Program.Equality.
-
-Inductive position: nat -> Type :=
-| PHere:
-    forall {n: nat},
-    position (S n)
-| PThere:
-    forall {n: nat}
-           (v: position n),
-    position (S n)
-.
-
-Variable (A: Type).
-
-Inductive term :=
-| zero: term
-| one: term
-| letter: A -> term
-| plus: term -> term -> term
-| times: term -> term -> term
-| star: term -> term
-.
-
-Notation "0" := zero.
-Notation "1" := one.
-Notation "$ a" := (letter a) (at level 30).
-Notation "t1 + t2" := (plus t1 t2) (at level 50, left associativity).
-Notation "t1 ;; t2" := (times t1 t2) (at level 40, left associativity).
-Notation "t *" := (star t) (at level 30).
-
-Definition vector (Q: Type) := Q -> term.
-
-Definition vector_sum
-  {Q: Type}
-  (v1 v2: vector Q)
-  (q: Q)
-  : term
-:=
-  v1 q + v2 q
-.
-
-Notation "v1 <+> v2" := (vector_sum v1 v2) (at level 40).
-
-Definition vector_chomp
-  {n: nat}
-  (v: vector (position (S n)))
-  (p: position n)
-  : term
-:=
-  v (PThere p)
-.
-
-Notation "# v" := (vector_chomp v) (at level 30).
-
-Equations inner_product {n: nat} (v1 v2: vector (position n)): term := {
-  @inner_product 0 _ _ :=
-    zero;
-  @inner_product (S _) v1 v2 :=
-    v1 PHere ;; v2 PHere + inner_product (vector_chomp v1) (vector_chomp v2);
-}.
-
-Notation "v1 ** v2" := (inner_product v1 v2) (at level 40).
-
-Definition matrix (Q: Type) := Q -> Q -> term.
-
-Definition matrix_vector_product
-  {n: nat}
-  (m: matrix (position n))
-  (v: vector (position n))
-  (p: position n)
-:=
-  (m p) ** v
-.
-
-Notation "m <*> v" := (matrix_vector_product m v) (at level 40).
-
-Reserved Notation "t1 == t2" (at level 70).
-Reserved Notation "t1 <= t2" (at level 70).
-
-Inductive term_equiv: term -> term -> Prop :=
-| ERefl: forall t, t == t
-| ESym: forall t1 t2, t1 == t2 -> t2 == t1
-| ETrans: forall t1 t2 t3, t1 == t2 -> t2 == t3 -> t1 == t3
-| ECongPlus: forall t1 t2 t3 t4, t1 == t2 -> t3 == t4 -> t1 + t3 == t2 + t4
-| ECongTimes: forall t1 t2 t3 t4, t1 == t2 -> t3 == t4 -> t1 ;; t3 == t2 ;; t4
-| ECongStar: forall t1 t2, t1 == t2 -> t1 * == t2 *
-| EPlusIdemp: forall t, t + t == t
-| EPlusComm: forall t1 t2, t1 + t2 == t2 + t1
-| EPlusAssoc: forall t1 t2 t3, t1 + (t2 + t3) == (t1 + t2) + t3
-| EPlusUnit: forall t, t + 0 == t
-| ETimesAssoc: forall t1 t2 t3, t1 ;; (t2 ;; t3) == (t1 ;; t2) ;; t3
-| ETimesUnitRight: forall t, t ;; 1 == t
-| ETimesUnitLeft: forall t, 1 ;; t == t
-| ETimesZeroLeft: forall t, t ;; 0 == 0
-| ETimesZeroRight: forall t, 0 ;; t == 0
-| EDistributeLeft: forall t1 t2 t3, t1 ;; (t2 + t3) == t1 ;; t2 + t1 ;; t3
-| EDistributeRight: forall t1 t2 t3, (t1 + t2) ;; t3 == t1 ;; t3 + t2 ;; t3
-| EStarLeft: forall t, t* == t ;; t* + 1
-| EFixLeft: forall t1 t2 t3, t2 ;; t1 + t3 <= t1 -> t2* ;; t3 <= t1
-where "t1 == t2" := (term_equiv t1 t2)
-  and "t1 <= t2" := (t1 + t2 == t2).
-
 Require Import Coq.Setoids.Setoid.
 
-Add Relation term term_equiv
-  reflexivity proved by ERefl
-  symmetry proved by ESym
-  transitivity proved by ETrans
-  as equiv_eq
-.
+Require Import KA.Terms.
+Require Import KA.Vectors.
+Require Import KA.Scope.
+Local Open Scope ka_scope.
 
-Add Morphism plus
-  with signature term_equiv ==> term_equiv ==> term_equiv
-  as plus_mor
-.
-Proof.
-  intros.
-  now apply ECongPlus.
-Qed.
-
-Add Morphism times
-  with signature term_equiv ==> term_equiv ==> term_equiv
-  as times_mor
-.
-Proof.
-  intros.
-  now apply ECongTimes.
-Qed.
-
-Add Morphism star
-  with signature term_equiv ==> term_equiv
-  as star_mor
-.
-Proof.
-  intros.
-  now apply ECongStar.
-Qed.
-
-Definition term_lequiv (t1 t2: term) := t1 <= t2.
-Global Hint Unfold term_lequiv : core.
-
-Lemma term_lequiv_refl (t: term):
-  t <= t
-.
-Proof.
-  now rewrite EPlusIdemp.
-Qed.
-
-Lemma term_lequiv_trans (t1 t2 t3: term):
-  t1 <= t2 -> t2 <= t3 -> t1 <= t3
-.
-Proof.
-  intros.
-  rewrite <- H0.
-  rewrite <- H.
-  repeat rewrite EPlusAssoc.
-  rewrite EPlusIdemp.
-  reflexivity.
-Qed.
-
-Lemma term_lequiv_zero (t: term):
-  0 <= t
-.
-Proof.
-  now rewrite EPlusComm, EPlusUnit.
-Qed.
-
-Add Relation term term_lequiv
-  reflexivity proved by term_lequiv_refl
-  transitivity proved by term_lequiv_trans
-  as term_lequiv_po
-.
-
-Instance term_equiv_implies_lequiv: subrelation term_equiv term_lequiv.
-Proof.
-  unfold subrelation, term_lequiv; intros.
-  rewrite H.
-  now rewrite EPlusIdemp.
-Qed.
-
-Definition equiv_vec {Q: Type} (v1 v2: vector Q): Prop :=
-  forall (q: Q), v1 q == v2 q
-.
-
-Notation "v1 === v2" := (equiv_vec v1 v2) (at level 70).
-
-Lemma equiv_vec_refl {Q: Type} (v: vector Q):
-  v === v
-.
-Proof.
-  now intro.
-Qed.
-
-Lemma equiv_vec_sym {Q: Type} (v1 v2: vector Q):
-  v1 === v2 -> v2 === v1
-.
-Proof.
-  intro; now intro.
-Qed.
-
-Lemma equiv_vec_trans {Q: Type} (v1 v2 v3: vector Q):
-  v1 === v2 -> v2 === v3 -> v1 === v3
-.
-Proof.
-  intros; intro.
-  now transitivity (v2 q).
-Qed.
-
-Add Parametric Relation (Q: Type): (vector Q) equiv_vec
-  reflexivity proved by equiv_vec_refl
-  symmetry proved by equiv_vec_sym
-  transitivity proved by equiv_vec_trans
-  as equiv_equiv_vec
-.
-
-Add Parametric Morphism (Q: Type): vector_sum
-  with signature (@equiv_vec Q) ==> equiv_vec ==> equiv_vec
-  as vector_sum_mor
-.
-Proof.
-  intros; intro.
-  unfold vector_sum.
-  now rewrite (H q), (H0 q).
-Qed.
-
-Add Parametric Morphism (n: nat): vector_chomp
-  with signature (@equiv_vec (position (S n))) ==> equiv_vec
-  as vector_comp_mor.
-Proof.
-  intros.
-  intro.
-  unfold vector_chomp.
-  now rewrite (H (PThere q)).
-Qed.
-
-Add Parametric Morphism (n: nat): inner_product
-  with signature (@equiv_vec (position n)) ==> equiv_vec ==> term_equiv
-  as inner_product_mor
-.
-Proof.
-  intros.
-  dependent induction n.
-  - autorewrite with inner_product.
-    reflexivity.
-  - autorewrite with inner_product.
-    rewrite (H PHere), (H0 PHere).
-    apply ECongPlus; try reflexivity.
-    apply IHn.
-    + now rewrite H.
-    + now rewrite H0.
-Qed.
-
-Definition lequiv_vec {Q: Type} (v1 v2: vector Q): Prop :=
-  forall (q: Q), v1 q <= v2 q
-.
-Notation "v1 <== v2" := (lequiv_vec v1 v2) (at level 70).
+Variable (A: Type).
+Notation term := (term A).
+Notation matrix := (matrix A).
+Notation vector := (vector A).
 
 Record system (Q: Type) := {
   smat: matrix Q;
@@ -498,7 +254,7 @@ Proof.
 Qed.
 
 Add Morphism plus
-  with signature term_lequiv ==> term_lequiv ==> term_lequiv
+  with signature term_lequiv ==> term_lequiv ==> (@term_lequiv A)
   as plus_mor_mono
 .
 Proof.
@@ -514,7 +270,7 @@ Proof.
 Qed.
 
 Add Morphism times
-  with signature term_lequiv ==> term_lequiv ==> term_lequiv
+  with signature term_lequiv ==> term_lequiv ==> (@term_lequiv A)
   as times_mor_mono
 .
 Proof.
@@ -527,7 +283,7 @@ Proof.
 Qed.
 
 Add Parametric Morphism (n: nat): inner_product
-  with signature eq ==> (@lequiv_vec (position n)) ==> term_lequiv
+  with signature eq ==> (@lequiv_vec A (position n)) ==> term_lequiv
   as inner_product_mor_mono
 .
 Proof.
@@ -1332,8 +1088,6 @@ Inductive derivative: term -> Type :=
     derivative (t *)
 .
 
-Derive NoConfusion for term.
-
 Equations derivative_write {t: term} (d: derivative t): term := {
   derivative_write TOneOne := 1;
   derivative_write (TLetterLetter a) := $ a;
@@ -1419,8 +1173,6 @@ Equations initial_l (t: term): list (derivative t) := {
   initial_l (t1 ;; t2) := map (TTimesPre t2) (initial_l t1);
   initial_l (t*) := TStarOne t :: map (TStarInner t) (initial_l t);
 }.
-
-Search existT.
 
 Ltac clean_exists :=
   repeat match goal with
@@ -2482,7 +2234,8 @@ Proof.
     + now apply IHt2.
     + rewrite ETimesAssoc.
       apply times_mor_mono; auto.
-      apply term_lequiv_refl.
+      * now apply IHt1.
+      * apply term_lequiv_refl.
     + eapply term_lequiv_trans.
       * now apply IHt2 with (q1 := i).
       * rewrite <- ETimesUnitLeft with (t := derivative_write i).
@@ -2491,8 +2244,9 @@ Proof.
         -- now apply initial_cover.
     + now apply IHt2.
     + rewrite ETimesAssoc.
-      apply times_mor_mono; auto.
-      apply term_lequiv_refl.
+      apply times_mor_mono.
+      * now apply IHt.
+      * apply term_lequiv_refl.
     + eapply term_lequiv_trans with (t2 := t*).
       * rewrite ETimesAssoc.
         rewrite EStarLeft at 2.
