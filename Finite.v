@@ -171,3 +171,49 @@ Section FiniteIsomorphism.
     now rewrite list_lookup_index.
   Qed.
 End FiniteIsomorphism.
+
+Section FiniteUtilities.
+
+  (* From Leapfrog *)
+  Lemma NoDup_app :
+    forall A (l l': list A),
+      NoDup l ->
+      NoDup l' ->
+      (forall x, In x l -> ~ In x l') ->
+      (forall x, In x l' -> ~ In x l) ->
+      NoDup (l ++ l').
+  Proof.
+    induction l; destruct l'; simpl; autorewrite with list; auto.
+    intros.
+    constructor.
+    + intro.
+      inversion H; subst.
+      apply in_app_or in H3.
+      destruct H3; auto.
+      eapply H2; eauto with datatypes.
+    + eapply IHl; eauto with datatypes.
+      * inversion H; auto.
+      * intuition eauto with datatypes.
+  Qed.
+
+  (* From Leapfrog *)
+  Lemma NoDup_map:
+    forall A B (f: A -> B) l,
+      (forall x y, f x = f y -> x = y) ->
+      NoDup l ->
+      NoDup (map f l).
+  Proof.
+    intros.
+    induction l; simpl; constructor.
+    - intro Hin.
+      apply in_map_iff in Hin.
+      destruct Hin as [x [Heq Hin]].
+      apply H in Heq.
+      subst.
+      inversion H0.
+      congruence.
+    - inversion H0.
+      eauto.
+  Qed.
+
+End FiniteUtilities.

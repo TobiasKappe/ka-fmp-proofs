@@ -290,4 +290,43 @@ Section TermSum.
     - rewrite IHl.
       now rewrite EDistributeLeft.
   Qed.
+
+  Lemma sum_lequiv_member
+    (t: term)
+    (l: list term)
+  :
+    In t l ->
+    t <= sum l
+  .
+  Proof.
+    intros; induction l; destruct H.
+    - subst.
+      autorewrite with sum.
+      apply term_lequiv_split_left.
+      apply term_lequiv_refl.
+    - autorewrite with sum.
+      apply term_lequiv_split_right.
+      now apply IHl.
+  Qed.
+
+  Lemma sum_lequiv_all
+    (l: list term)
+    (t: term)
+  :
+    (forall (t': term), In t' l -> t' <= t) ->
+    sum l <= t
+  .
+  Proof.
+    intros.
+    induction l.
+    - autorewrite with sum.
+      apply term_lequiv_zero.
+    - autorewrite with sum.
+      apply term_lequiv_split.
+      + apply H.
+        now left.
+      + apply IHl; intros.
+        apply H.
+        now right.
+  Qed.
 End TermSum.
