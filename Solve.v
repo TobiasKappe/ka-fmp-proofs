@@ -477,4 +477,58 @@ Section SolutionCorrect.
       + simpl; unfold vector_index.
         now rewrite list_lookup_index.
   Qed.
+
+  Lemma compute_solution_least
+    {X: Type}
+    `{Finite X}
+    (sys: system X)
+    (scale: term)
+  :
+    forall sol,
+      solution sys scale sol ->
+      compute_solution sys ;;; scale <== sol
+  .
+  Proof.
+    intros; intro x.
+    unfold compute_solution, vector_scale_right.
+    replace (vector_lookup _ x ;; scale)
+      with (vector_lookup (compute_solution_nat (system_index sys) ;;; scale) x)
+      by reflexivity.
+    apply vector_lequiv_adjunction.
+    apply compute_solution_nat_least_solution.
+    now apply solution_finite_to_nat.
+  Qed.
+
+  Lemma compute_solution_least_solution
+    {X: Type}
+    `{Finite X}
+    (sys: system X)
+    (scale: term)
+  :
+    least_solution sys scale (compute_solution sys ;;; scale)
+  .
+  Proof.
+    split.
+    - apply compute_solution_solution.
+    - apply compute_solution_least.
+  Qed.
+
+  Lemma least_solution_unique
+    {X: Type}
+    (sys: system X)
+    (scale: term)
+    (v1 v2: vector X)
+  :
+    least_solution sys scale v1 ->
+    least_solution sys scale v2 ->
+    v1 === v2
+  .
+  Proof.
+    intros.
+    apply vector_lequiv_squeeze.
+    - apply H.
+      apply H0.
+    - apply H0.
+      apply H.
+  Qed.
 End SolutionCorrect.

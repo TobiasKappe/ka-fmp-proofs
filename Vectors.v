@@ -404,4 +404,19 @@ Section VectorProperties.
       rewrite <- list_index_lookup at 1.
       apply H0.
   Qed.
+
+  Lemma vector_lequiv_squeeze
+    {X: Type}
+    (v1 v2: vector X)
+  :
+    v1 <== v2 ->
+    v2 <== v1 ->
+    v1 === v2
+  .
+  Proof.
+    intros; intro x.
+    apply term_lequiv_squeeze.
+    - apply H.
+    - apply H0.
+  Qed.
 End VectorProperties.

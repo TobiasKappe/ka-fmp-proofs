@@ -231,4 +231,19 @@ Section TermProperties.
     repeat apply term_lequiv_split_left.
     apply term_lequiv_refl.
   Qed.
+
+  Lemma term_lequiv_squeeze
+    (t1 t2: term)
+  :
+    t1 <= t2 ->
+    t2 <= t1 ->
+    t1 == t2
+  .
+  Proof.
+    intros.
+    rewrite <- H.
+    rewrite <- H0 at 1.
+    rewrite EPlusComm.
+    reflexivity.
+  Qed.
 End TermProperties.
