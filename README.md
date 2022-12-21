@@ -1,6 +1,6 @@
-This is the Coq formalization accompanying the paper
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7467245.svg)](https://doi.org/10.5281/zenodo.7467245)
 
-    Completeness and the Finite Model Property for Kleene Algebra, Reconsidered
+This is the Coq formalization accompanying the paper _Completeness and the Finite Model Property for Kleene Algebra, Reconsidered_.
 
 It includes the following files:
 * Finite.v    : a typeclass for types with finitely many members.
@@ -16,5 +16,4 @@ It includes the following files:
 * Main.v      : the main theorems: completeness and the FMP
 * Derived.v   : some equations of KA derived by way of completeness.
 
-To compile, make sure you have GNU Make and Coq >= 8.15, and run "make".
-
+To compile, make sure you have GNU Make and Coq >= 8.15, and run `make`.
