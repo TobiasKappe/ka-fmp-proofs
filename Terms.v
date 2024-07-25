@@ -591,6 +591,26 @@ Section TermMatches.
     rewrite <- app_comm_cons in x.
     inversion x.
   Qed.
+
+  Lemma term_matches_star_progress
+    (t: term)
+    (w: list A)
+    (a: A)
+  :
+    term_matches (t*) (a :: w) ->
+    exists w1 w2,
+      w = w1 ++ w2 /\
+      term_matches t (a :: w1) /\
+      term_matches (t*) w2
+  .
+  Proof.
+    intros.
+    dependent induction H.
+    destruct w1; simpl in x; subst.
+    - apply IHterm_matches2; eauto.
+    - inversion x; subst; clear x.
+      eexists; intuition eauto.
+  Qed.
 End TermMatches.
 
 Section TermEmpty.

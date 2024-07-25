@@ -724,6 +724,221 @@ Section StructureNormalForm.
     )
   .
 
+  Lemma automaton_kleene_algebra_interp_upper
+    (t: term)
+    (m: derivative A t -> derivative A t -> bool)
+  :
+    kleene_interp (automaton_kleene_algebra (automaton_antimirov t))
+                  (automaton_kleene_algebra_embed (automaton_antimirov t))
+                  t m = true ->
+    automaton_relation_solution (automaton_antimirov t) m <= t
+  .
+  Proof.
+    intros.
+    apply kleene_interp_witness_construct in H0.
+    destruct H0 as [w [? ?]].
+    apply automaton_antimirov_accepts in H1.
+    destruct H1 as [t' [? ?]].
+    apply automaton_accepts_transition_matrix in H2.
+    unfold vector_inner_product_bool in H2.
+    apply disj_true in H2.
+    apply in_map_iff in H2.
+    destruct H2 as [t'' [? ?]].
+    apply andb_prop in H2.
+    destruct H2 as [? ?].
+    eapply term_lequiv_trans.
+    eapply automaton_relation_solution_bound.
+    rewrite H0 in H2.
+    apply H2.
+    apply H4.
+    eapply term_lequiv_trans.
+    - apply antimirov_solution_upper_bound.
+    - now apply initial_cover.
+  Qed.
+
+  Lemma automaton_kleene_algebra_interp_lower
+    (t t': term)
+  :
+    t' <=
+    sum (map
+      (automaton_relation_solution (automaton_antimirov t))
+      (filter
+        (kleene_interp
+          (automaton_kleene_algebra (automaton_antimirov t))
+          (automaton_kleene_algebra_embed (automaton_antimirov t)) t')
+        finite_enum)
+    )
+  .
+  Proof.
+    dependent induction t'.
+    - apply term_lequiv_zero.
+    - autorewrite with kleene_interp.
+      eapply term_lequiv_trans; swap 1 2.
+      + apply sum_lequiv_member.
+        apply in_map_iff.
+        eexists; intuition.
+        apply filter_In; intuition.
+        * apply finite_cover.
+        * now apply finite_eqb_eq.
+      + rewrite automaton_relation_solution_characterise.
+        unfold automaton_relation_solution'.
+        eapply automaton_solution_halt.
+        * apply automaton_solution_invariant.
+          apply compute_automaton_solution_least_solution.
+        * now apply finite_eqb_eq.
+    - autorewrite with kleene_interp.
+      eapply term_lequiv_trans; swap 1 2.
+      + apply sum_lequiv_member.
+        apply in_map_iff.
+        eexists; intuition.
+        apply filter_In; intuition.
+        * apply finite_cover.
+        * now apply finite_eqb_eq.
+      + rewrite automaton_relation_solution_characterise.
+        unfold automaton_relation_solution'.
+        eapply term_lequiv_trans; swap 1 2.
+        * eapply automaton_solution_move with (a := a).
+          -- apply automaton_solution_invariant.
+             apply compute_automaton_solution_least_solution.
+          -- now apply finite_eqb_eq.
+        * rewrite matrix_product_bool_unit_left.
+          rewrite <- ETimesUnitRight with (t := $a) at 1.
+          apply times_mor_mono.
+          -- apply term_lequiv_refl.
+          -- eapply automaton_solution_halt.
+             ++ apply automaton_solution_invariant.
+                apply compute_automaton_solution_least_solution.
+             ++ now apply finite_eqb_eq.
+    - apply term_lequiv_split.
+      + eapply term_lequiv_trans; eauto.
+        apply sum_lequiv_containment;
+        unfold incl; intro t'; intros.
+        apply in_map_iff in H0.
+        destruct H0 as [m [? ?]].
+        apply filter_In in H1.
+        destruct H1 as [_ ?].
+        apply in_map_iff.
+        exists m; intuition.
+        apply filter_In; intuition.
+        * apply finite_cover.
+        * autorewrite with kleene_interp; simpl.
+          unfold powerset_union.
+          now rewrite H1.
+      + eapply term_lequiv_trans; eauto.
+        apply sum_lequiv_containment;
+        unfold incl; intro t'; intros.
+        apply in_map_iff in H0.
+        destruct H0 as [m [? ?]].
+        apply filter_In in H1.
+        destruct H1 as [_ ?].
+        apply in_map_iff.
+        exists m; intuition.
+        apply filter_In; intuition.
+        * apply finite_cover.
+        * autorewrite with kleene_interp; simpl.
+          unfold powerset_union.
+          rewrite H1; btauto.
+    - eapply term_lequiv_trans.
+      + apply times_mor_mono; eauto.
+      + rewrite <- sum_distribute_left.
+        apply sum_lequiv_all; intros.
+        apply in_map_iff in H0.
+        destruct H0 as [t'' [? ?]]; subst.
+        apply in_map_iff in H1.
+        destruct H1 as [m [? ?]]; subst.
+        apply filter_In in H1.
+        destruct H1 as [_ ?].
+        rewrite <- sum_distribute_right.
+        apply sum_lequiv_all; intros.
+        apply in_map_iff in H1.
+        destruct H1 as [t'' [? ?]]; subst.
+        apply in_map_iff in H2.
+        destruct H2 as [m' [? ?]]; subst.
+        apply filter_In in H2.
+        destruct H2 as [_ ?].
+        eapply term_lequiv_trans;
+        [apply automaton_relation_solution_merge |].
+        apply sum_lequiv_member.
+        apply in_map_iff.
+        eexists; intuition.
+        apply filter_In.
+        intuition; [apply finite_cover|].
+        autorewrite with kleene_interp.
+        unfold kleene_multiply; simpl.
+        unfold powerset_multiplication.
+        apply disj_true.
+        apply in_map_iff.
+        exists (m', m).
+        repeat rewrite andb_true_intro; intuition.
+        * apply in_prod; apply finite_cover.
+        * now apply finite_eqb_eq.
+    - rewrite <- ETimesUnitRight with (t := t' *) at 1.
+      apply EFixLeft.
+      apply term_lequiv_split.
+      + eapply term_lequiv_trans; [ apply times_mor_mono; now eauto |].
+        rewrite <- sum_distribute_left.
+        apply sum_lequiv_all; intros t'''; intros.
+        apply in_map_iff in H0.
+        destruct H0 as [t'' [? ?]]; subst.
+        apply in_map_iff in H1.
+        destruct H1 as [m [? ?]]; subst.
+        apply filter_In in H1.
+        destruct H1 as [_ ?].
+        eapply term_lequiv_trans.
+        apply times_mor_mono; eauto; reflexivity.
+        rewrite <- sum_distribute_right.
+        apply sum_lequiv_all; intros.
+        apply in_map_iff in H1.
+        destruct H1 as [t'' [? ?]]; subst.
+        apply in_map_iff in H2.
+        destruct H2 as [m' [? ?]]; subst.
+        apply filter_In in H2.
+        destruct H2 as [_ ?].
+        eapply term_lequiv_trans;
+        [ apply automaton_relation_solution_merge |].
+        apply sum_lequiv_member.
+        apply in_map_iff.
+        eexists; intuition.
+        apply filter_In; intuition.
+        * apply finite_cover.
+        * rewrite kleene_interp_sound with (t2 := t' ;; t' * + 1)
+            by (apply EStarLeft).
+          autorewrite with kleene_interp; simpl.
+          unfold powerset_union.
+          apply Bool.orb_true_intro; left.
+          unfold kleene_multiply; simpl.
+          unfold powerset_multiplication.
+          apply disj_true.
+          apply in_map_iff.
+          exists (m', m); simpl.
+          repeat rewrite andb_true_intro; intuition.
+          -- apply in_prod; apply in_map_iff.
+             ++ exists (uncurry m'); intuition.
+                apply Finite.finite_subsets_finite_obligation_2.
+             ++ exists (uncurry m); intuition.
+                apply Finite.finite_subsets_finite_obligation_2.
+          -- now apply finite_eqb_eq.
+      + eapply term_lequiv_trans; swap 1 2.
+        * apply sum_lequiv_member.
+          apply in_map_iff.
+          eexists; intuition.
+          apply filter_In; intuition.
+          -- apply finite_cover.
+          -- rewrite kleene_interp_sound with (t2 := t';; t' * + 1)
+               by apply EStarLeft.
+             autorewrite with kleene_interp; simpl.
+             unfold powerset_union.
+             repeat rewrite Bool.orb_true_intro; intuition; right.
+             unfold kleene_unit, monoid_unit; simpl.
+             apply finite_eqb_eq; reflexivity.
+        * rewrite automaton_relation_solution_characterise.
+          unfold automaton_relation_solution'.
+          eapply automaton_solution_halt.
+          -- apply automaton_solution_invariant.
+            apply compute_automaton_solution_least_solution.
+          -- now apply finite_eqb_eq.
+  Qed.
+
   Lemma kleene_interp_recombine_characterise
     {Q: Type}
     `{Finite Q}

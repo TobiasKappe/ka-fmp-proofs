@@ -1257,6 +1257,36 @@ Section AutomatonTransformationMonoid.
     apply term_lequiv_refl.
   Qed.
 
+  Lemma automaton_relation_solution_bound
+    {Q: Type}
+    `{Finite Q}
+    (aut: automaton Q)
+    (m: Q -> Q -> bool)
+    (q q': Q)
+  :
+    m q q' = true ->
+    aut_accept aut q' = true ->
+    automaton_relation_solution aut m <= compute_automaton_solution aut q
+  .
+  Proof.
+    intros.
+    eapply term_lequiv_trans; swap 1 2.
+    apply automaton_sum_accepting_matrices_upper.
+    unfold automaton_sum_accepting_matrices.
+    apply sum_lequiv_member.
+    apply in_map_iff.
+    exists m; intuition.
+    unfold automaton_accepting_matrices.
+    apply filter_In.
+    intuition.
+    apply finite_cover.
+    unfold vector_inner_product_bool.
+    apply disj_true.
+    apply in_map_iff.
+    exists q'.
+    intuition.
+  Qed.
+
   Lemma automaton_sum_accepting_matrices_characterise
     {Q: Type}
     `{Finite Q}

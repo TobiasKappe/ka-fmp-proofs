@@ -20,7 +20,49 @@ Section Main.
       kleene_interp k f t1 = kleene_interp k f t2
   .
 
+  Lemma term_finite_equiv_symmetric
+    (t1 t2: term)
+  :
+    term_interp_finite_equiv t1 t2 ->
+    term_interp_finite_equiv t2 t1
+  .
+  Proof.
+    unfold term_interp_finite_equiv.
+    intros; now rewrite H0.
+  Qed.
+
+  Lemma finite_model_property_bound
+    (t1 t2: term)
+  :
+    term_interp_finite_equiv t1 t2 ->
+    t1 <= t2
+  .
+  Proof.
+    intros.
+    eapply term_lequiv_trans.
+    + apply automaton_kleene_algebra_interp_lower.
+    + apply sum_lequiv_all; intros.
+      apply in_map_iff in H1.
+      destruct H1 as [t'' [? ?]]; subst.
+      apply filter_In in H2; destruct H2 as [_ ?].
+      apply automaton_kleene_algebra_interp_upper.
+      rewrite <- H0; intuition.
+  Qed.
+
   Theorem finite_model_property
+    (t1 t2: term)
+  :
+    term_interp_finite_equiv t1 t2 ->
+    t1 == t2
+  .
+  Proof.
+    intros.
+    apply term_lequiv_squeeze.
+    - now apply finite_model_property_bound.
+    - now apply finite_model_property_bound, term_finite_equiv_symmetric.
+  Qed.
+
+  Theorem finite_model_property_old
     (t1 t2: term)
   :
     term_interp_finite_equiv t1 t2 ->

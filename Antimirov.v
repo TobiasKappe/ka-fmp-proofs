@@ -395,6 +395,31 @@ Section AntimirovNullable.
           apply term_lequiv_refl.
     - apply term_lequiv_refl.
   Qed.
+
+  Lemma nullable_term_matches
+    (t: term)
+    (t': derivative t)
+  :
+    term_matches (derivative_write t') nil ->
+    nullable t'
+  .
+  Proof.
+    dependent induction t;
+    dependent destruction t';
+    autorewrite with derivative_write; intros;
+    try constructor; intuition;
+    dependent destruction H;
+    apply app_eq_nil in x; destruct x;
+    subst; intuition.
+    eapply term_equiv_sound in H0; swap 1 2.
+    symmetry; apply initial_reconstruct.
+    apply term_matches_sum in H0.
+    destruct H0 as [t [? ?]].
+    apply in_map_iff in H0.
+    destruct H0 as [t'' [? ?]]; subst.
+    apply initial_list in H2.
+    apply NullableTimesPre with (d2 := t''); intuition.
+  Qed.
 End AntimirovNullable.
 
 Section AntimirovDerive.
@@ -686,6 +711,89 @@ Section AntimirovDerive.
         apply Eqdep.EqdepTheory.inj_pair2.
         now inversion H0.
   Qed.
+
+  Lemma term_matches_step
+    (t: term)
+    (t': derivative t)
+    (a: A)
+    (w: list A)
+  :
+    term_matches (derivative_write t') (a :: w) ->
+    exists t'',
+      derive a t' t'' /\
+      term_matches (derivative_write t'') w
+  .
+  Proof.
+    dependent induction t;
+    dependent destruction t';
+    autorewrite with derivative_write; intros.
+    - dependent destruction H0.
+    - dependent destruction H0.
+      eexists; intuition.
+      + constructor.
+      + simpl; constructor.
+    - dependent destruction H0.
+    - apply IHt1 in H0.
+      destruct H0 as [t'' [? ?]].
+      eexists; intuition.
+      + constructor; eauto.
+      + now simpl.
+    - apply IHt2 in H0.
+      destruct H0 as [t'' [? ?]].
+      eexists; intuition.
+      + constructor; eauto.
+      + now simpl.
+    - dependent destruction H0.
+      destruct w1.
+      + simpl in x; subst.
+        eapply term_equiv_sound in H0_0; swap 1 2.
+        symmetry; apply initial_reconstruct.
+        apply term_matches_sum in H0_0.
+        destruct H0_0 as [t'' [? ?]].
+        apply in_map_iff in H0.
+        destruct H0 as [t''' [? ?]]; subst.
+        apply initial_list in H2.
+        apply IHt2 in H1.
+        destruct H1 as [t'' [? ?]].
+        apply nullable_term_matches in H0_.
+        eexists (TTimesPost t1 t''); intuition.
+        econstructor; eauto.
+      + simpl in x; inversion x; subst; clear x.
+        apply IHt1 in H0_.
+        destruct H0_ as [t'' [? ?]]; subst.
+        eexists (TTimesPre t2 t'');
+        autorewrite with derivative_write;
+        intuition now constructor.
+    - apply IHt2 in H0.
+      destruct H0 as [t'' [? ?]].
+      exists (TTimesPost t1 t'').
+      intuition now constructor.
+    - dependent destruction H0.
+      destruct w1.
+      + simpl in x; subst.
+        apply term_matches_star_progress in H0_0.
+        destruct H0_0 as [? [? [? [? ?]]]]; subst.
+        eapply term_equiv_sound in H1; swap 1 2.
+        symmetry; apply initial_reconstruct.
+        apply term_matches_sum in H1.
+        destruct H1 as [t'' [? ?]].
+        apply in_map_iff in H0.
+        destruct H0 as [t''' [? ?]]; subst.
+        apply initial_list in H3.
+        apply IHt in H1.
+        destruct H1 as [t'' [? ?]].
+        apply nullable_term_matches in H0_.
+        eexists (TStarInner t t''); intuition.
+        * eapply DeriveStarInnerJump; eauto.
+        * autorewrite with derivative_write; now constructor.
+      + simpl in x; inversion x; subst; clear x.
+        apply IHt in H0_.
+        destruct H0_ as [t'' [? ?]]; subst.
+        eexists (TStarInner t t'');
+        autorewrite with derivative_write;
+        intuition now constructor.
+    - dependent destruction H0.
+  Qed.
 End AntimirovDerive.
 
 Section AntimirovAutomaton.
@@ -699,6 +807,48 @@ Section AntimirovAutomaton.
     aut_transitions a d1 d2 := derive_b a d1 d2;
     aut_accept := nullable_b;
   |}.
+
+  Lemma automaton_antimirov_accepts_local
+    (t: term)
+    (t': derivative t)
+    (w: list A)
+  :
+    term_matches (derivative_write t') w ->
+    automaton_accepts (automaton_antimirov t) t' w
+  .
+  Proof.
+    revert t'; induction w; intros.
+    - apply nullable_term_matches in H0.
+      constructor; simpl.
+      now apply nullable_dec.
+    - apply term_matches_step in H0.
+      destruct H0 as [? [? ?]].
+      econstructor; simpl.
+      + apply derive_dec; eauto.
+      + now apply IHw.
+  Qed.
+
+  Lemma automaton_antimirov_accepts
+    (t: term)
+    (w: list A)
+  :
+    term_matches t w ->
+    exists t',
+        initial A t' /\
+        automaton_accepts (automaton_antimirov t) t' w
+  .
+  Proof.
+    intros.
+    eapply term_equiv_sound in H0; swap 1 2.
+    symmetry; apply initial_reconstruct.
+    apply term_matches_sum in H0.
+    destruct H0 as [? [? ?]].
+    apply in_map_iff in H0.
+    destruct H0 as [t' [? ?]]; subst.
+    apply initial_list in H2.
+    exists t'; intuition.
+    now apply automaton_antimirov_accepts_local.
+  Qed.
 End AntimirovAutomaton.
 
 Section AntimirovMorphisms.
