@@ -1,7 +1,8 @@
 From Equations Require Import Equations.
 Require Import Coq.Lists.List.
-Require Import Coq.Program.Equality.
+Require Import Coq.Logic.PropExtensionality.
 Require Import Coq.Program.Basics.
+Require Import Coq.Program.Equality.
 Require Import Coq.micromega.Lia.
 Local Open Scope program_scope.
 
@@ -186,6 +187,54 @@ Section FiniteIsomorphism.
     now rewrite list_lookup_index.
   Qed.
 End FiniteIsomorphism.
+
+Module FiniteBijection.
+  Record bijection {X Y: Type} := {
+    bijection_mapping :> X -> Y;
+    bijection_inverse: Y -> X;
+    bijection_injective:
+      forall x1 x2,
+        bijection_mapping x1 = bijection_mapping x2 ->
+        x1 = x2;
+    bijection_surjective:
+      forall y, bijection_mapping (bijection_inverse y) = y
+  }.
+  Arguments bijection _ _ : clear implicits.
+
+  Local Program Instance bijection_finite
+    (X Y: Type)
+    `{Finite X}
+    (f: bijection X Y)
+  :
+    Finite Y
+  := {|
+    finite_enum := map f finite_enum
+  |}.
+  Next Obligation.
+    destruct (finite_dec (bijection_inverse f x1) (bijection_inverse f x2)).
+    - apply (f_equal (bijection_mapping f)) in e.
+      repeat rewrite bijection_surjective in e.
+      now left.
+    - right; contradict n.
+      now subst.
+  Qed.
+  Next Obligation.
+    pose proof (bijection_surjective f).
+    rewrite <- (H0 x).
+    apply in_map_iff.
+    eexists; intuition.
+  Qed.
+  Next Obligation.
+    eapply NoDup_map_inv with (f := bijection_inverse f).
+    rewrite map_map.
+    rewrite map_ext with (g := id).
+    - rewrite map_id.
+      apply finite_nodup.
+    - intros; unfold id; simpl.
+      apply bijection_injective with (b := f).
+      now rewrite bijection_surjective.
+  Qed.
+End FiniteBijection.
 
 Section FiniteUtilities.
   (* From Leapfrog *)
@@ -585,6 +634,84 @@ Section FiniteProduct.
     apply finite_nodup.
   Qed.
 End FiniteProduct.
+
+Module FinitePredicates.
+  Import FiniteBijection.
+
+  Axiom decidable_predicates:
+    forall {X: Type} (P: X -> Prop) (x: X),
+      {P x} + {~P x}
+  .
+
+  Definition predicate_to_bool_func
+    {X: Type}
+    (P: X -> Prop)
+    (x: X)
+  :=
+    match decidable_predicates P x with
+    | left _ => true
+    | right  _ => false
+    end
+  .
+
+  Definition bool_func_to_predicate
+    {X: Type}
+    (f: X -> bool)
+    (x: X)
+  :=
+    f x = true
+  .
+
+  Global Instance finite_subsets_finite_prop
+    (X: Type)
+    `{Finite X}
+  :
+    Finite (X -> Prop)
+  .
+  Proof.
+    apply bijection_finite with (X := X -> bool).
+    - typeclasses eauto.
+    - split with (bijection_inverse := predicate_to_bool_func)
+                 (bijection_mapping := bool_func_to_predicate).
+      + intros.
+        extensionality x.
+        assert (bool_func_to_predicate x1 x <-> bool_func_to_predicate x2 x).
+        * now rewrite H0.
+        * unfold bool_func_to_predicate in H1.
+          apply Bool.eq_bool_prop_intro.
+          unfold Bool.Is_true.
+          destruct (x1 x) eqn:?;
+          destruct (x2 x) eqn:?;
+          intuition.
+      + intros.
+        extensionality x.
+        apply propositional_extensionality.
+        unfold bool_func_to_predicate.
+        unfold predicate_to_bool_func.
+        destruct (decidable_predicates y x);
+        intuition.
+  Qed.
+
+  Global Instance finite_matrices_finite_prop
+    (X: Type)
+    `{Finite X}
+  :
+    Finite (X -> X -> Prop)
+  .
+  Proof.
+    apply bijection_finite with (X := (X * X) -> Prop).
+    - typeclasses eauto.
+    - split with (bijection_inverse := uncurry)
+                 (bijection_mapping := curry).
+      + intros.
+        extensionality x.
+        destruct x as [x x'].
+        assert (curry x1 x x' = curry x2 x x') by (now rewrite H0).
+        apply H1.
+      + intros.
+        now extensionality x; extensionality x'.
+  Qed.
+End FinitePredicates.
 
 Section FinitePigeonholePrinciple.
   Inductive HasDup {X: Type}: list X -> Prop :=

@@ -608,7 +608,7 @@ Section EquationalTheories.
     (Ks: forall {X: Type}, kleene_algebra X -> Prop)
     (t1 t2: term A)
   :=
-    forall {X: Type} (K: kleene_algebra X),
+    forall (X: Type) (K: kleene_algebra X),
       Ks K ->
       kleene_satisfies K t1 t2
   .
@@ -670,5 +670,22 @@ Section EquationalTheories.
   Proof.
     apply kleene_class_contained_preserves; intros.
     destruct H; apply kleene_finite_star_continuous.
+  Qed.
+
+  Import FinitePredicates.
+
+  Lemma kleene_preserve_equation_finite_finite_relational
+    {A X: Type}
+    (K: kleene_algebra X)
+    (t1 t2: term A)
+  :
+    kleene_satisfies_class (@kleene_finite) t1 t2 ->
+    kleene_satisfies_class (@kleene_finite_relational) t1 t2
+  .
+  Proof.
+    apply kleene_class_contained_preserves; intros.
+    destruct H.
+    constructor.
+    typeclasses eauto.
   Qed.
 End EquationalTheories.
