@@ -5,6 +5,7 @@ Require Import Coq.micromega.Lia.
 
 Require Import KA.Finite.
 Require Import KA.Scope.
+Require Import KA.Terms.
 Require Import KA.Structure.
 Local Open Scope ka_scope.
 
@@ -27,7 +28,7 @@ Section RelationalModels.
     (n: nat)
   :=
     match n with
-    | 0 => monoid_relational_unit
+    | 0%nat => monoid_relational_unit
     | S n => monoid_relational_compose R (monoid_relational_repeat R n)
     end
   .
@@ -90,7 +91,7 @@ Section RelationalModels.
     apply propositional_extensionality; split; intros.
     - unfold kleene_relational_repeat.
       induction H.
-      + now exists 0.
+      + now exists 0%nat.
       + destruct IHkleene_relational_star as [n ?].
         now exists (S n), x'.
     - destruct H as [n ?].
@@ -337,7 +338,7 @@ Section Powers.
     X
   :=
     match n with
-    | 0 => kleene_unit K
+    | 0%nat => kleene_unit K
     | S n => kleene_multiply K x (kleene_power K x n)
     end
   .
@@ -395,7 +396,7 @@ Section Powers.
   .
   Proof.
     intros.
-    replace (k - (m - n)) with (k - m + n) by lia.
+    replace (k - (m - n)) with (k - m + n)%nat by lia.
     rewrite <- kleene_power_sum.
     rewrite H0, kleene_power_sum.
     f_equal; lia.
@@ -432,7 +433,7 @@ Section Powers.
       apply map_eq_nil in H12, H10.
       subst.
       assert (0 <= n1 < S (length finite_enum)).
-      + replace (S (length finite_enum)) with (0 + S (length finite_enum)) by lia.
+      + replace (S (length finite_enum)) with (0 + S (length finite_enum))%nat by lia.
         rewrite <- in_seq.
         rewrite H0.
         apply in_or_app; right.
@@ -497,9 +498,9 @@ Section Powers.
     unfold kleene_star_sum_powers_finite.
     eapply kleene_sum_member.
     apply in_map_iff.
-    exists 0; intuition.
+    exists 0%nat; intuition.
     apply in_seq.
-    enough (length finite_enum <> 0) by lia.
+    enough (length finite_enum <> 0%nat) by lia.
     assert (In (kleene_unit K) finite_enum) by (apply finite_cover).
     intro; apply length_zero_iff_nil in H1.
     rewrite H1 in H0.
@@ -591,3 +592,83 @@ Section StarContinuity.
     apply H0.
   Qed.
 End StarContinuity.
+
+Section EquationalTheories.
+  Definition kleene_satisfies
+    {A X: Type}
+    (K: kleene_algebra X)
+    (t1 t2: term A)
+  :=
+    forall (h: A -> X),
+      kleene_interp K h t1 = kleene_interp K h t2
+  .
+
+  Definition kleene_satisfies_class
+    {A: Type}
+    (Ks: forall {X: Type}, kleene_algebra X -> Prop)
+    (t1 t2: term A)
+  :=
+    forall {X: Type} (K: kleene_algebra X),
+      Ks K ->
+      kleene_satisfies K t1 t2
+  .
+
+  Variant kleene_relational:
+    forall {X: Type}, kleene_algebra X -> Prop :=
+  | KleeneRelational:
+      forall (X: Type), kleene_relational (kleene_algebra_relational X)
+  .
+
+  Variant kleene_finite:
+    forall {X: Type}, kleene_algebra X -> Prop :=
+  | KleeneFinite:
+      forall (X: Type) (K: kleene_algebra X),
+        Finite X -> kleene_finite K
+  .
+
+  Variant kleene_finite_relational:
+    forall {X: Type}, kleene_algebra X -> Prop :=
+  | KleeneFiniteRelational:
+      forall (X: Type),
+        Finite X ->
+        kleene_finite_relational (kleene_algebra_relational X)
+  .
+
+  Lemma kleene_class_contained_preserves
+    (Ks Ks': forall {X: Type}, kleene_algebra X -> Prop)
+  :
+    (forall (X: Type) (K: kleene_algebra X), Ks' K -> Ks K) ->
+    forall (A: Type) (t1 t2: term A),
+      kleene_satisfies_class (@Ks) t1 t2 ->
+      kleene_satisfies_class (@Ks') t1 t2
+  .
+  Proof.
+    unfold kleene_satisfies_class, kleene_satisfies; firstorder.
+  Qed.
+
+  Lemma kleene_preserve_equation_star_continuous_relational
+    {A X: Type}
+    (K: kleene_algebra X)
+    (t1 t2: term A)
+  :
+    kleene_satisfies_class (@kleene_star_continuous) t1 t2 ->
+    kleene_satisfies_class (@kleene_relational) t1 t2
+  .
+  Proof.
+    apply kleene_class_contained_preserves; intros.
+    destruct H; apply kleene_relational_star_continuous.
+  Qed.
+
+  Lemma kleene_preserve_equation_star_continuous_finite
+    {A X: Type}
+    (K: kleene_algebra X)
+    (t1 t2: term A)
+  :
+    kleene_satisfies_class (@kleene_star_continuous) t1 t2 ->
+    kleene_satisfies_class (@kleene_finite) t1 t2
+  .
+  Proof.
+    apply kleene_class_contained_preserves; intros.
+    destruct H; apply kleene_finite_star_continuous.
+  Qed.
+End EquationalTheories.
