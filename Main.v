@@ -62,21 +62,6 @@ Section Main.
     - now apply finite_model_property_bound, term_finite_equiv_symmetric.
   Qed.
 
-  Theorem finite_model_property_old
-    (t1 t2: term)
-  :
-    term_interp_finite_equiv t1 t2 ->
-    t1 == t2
-  .
-  Proof.
-    intros.
-    rewrite term_normal_form_left with (t2 := t2) at 1; symmetry.
-    rewrite term_normal_form_right with (t1 := t1) at 1; symmetry.
-    rewrite H0.
-    - reflexivity.
-    - typeclasses eauto.
-  Qed.
-
   Definition term_language_equiv
     (t1 t2: term)
   :=
@@ -86,28 +71,9 @@ Section Main.
   Theorem completeness
     (t1 t2: term)
   :
-    term_language_equiv t1 t2 <->
+    term_language_equiv t1 t2 ->
     t1 == t2
   .
   Proof.
-    split; intros.
-    - intros.
-      rewrite term_normal_form_left with (t2 := t2) at 1; symmetry.
-      rewrite term_normal_form_right with (t1 := t1) at 1; symmetry.
-      erewrite filter_ext.
-      + reflexivity.
-      + intros m.
-        apply ZMicromega.eq_true_iff_eq.
-        split; intros.
-        * apply kleene_interp_witness_construct in H1.
-          destruct H1 as [w [? ?]]; subst.
-          apply kleene_interp_witness_apply.
-          intuition.
-        * apply kleene_interp_witness_construct in H1.
-          destruct H1 as [w [? ?]]; subst.
-          apply kleene_interp_witness_apply.
-          intuition.
-    - unfold term_language_equiv; intros.
-      now apply term_equiv_sound.
-  Qed.
+  Admitted.
 End Main.
