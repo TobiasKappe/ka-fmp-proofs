@@ -716,7 +716,7 @@ Section StructureNormalForm.
     term
   :=
     sum (
-       map (automaton_relation_solution aut)
+       map (fun m => automaton_relation_solution aut m finite_eqb)
            (filter (kleene_interp (automaton_kleene_algebra aut)
                                   (automaton_kleene_algebra_embed aut)
                                   (compute_automaton_solution aut q))
@@ -731,7 +731,7 @@ Section StructureNormalForm.
     kleene_interp (automaton_kleene_algebra (automaton_antimirov t))
                   (automaton_kleene_algebra_embed (automaton_antimirov t))
                   t m = true ->
-    automaton_relation_solution (automaton_antimirov t) m <= t
+    automaton_relation_solution (automaton_antimirov t) m finite_eqb <= t
   .
   Proof.
     intros.
@@ -761,7 +761,7 @@ Section StructureNormalForm.
   :
     t' <=
     sum (map
-      (automaton_relation_solution (automaton_antimirov t))
+      (fun m => automaton_relation_solution (automaton_antimirov t) m finite_eqb)
       (filter
         (kleene_interp
           (automaton_kleene_algebra (automaton_antimirov t))
@@ -780,8 +780,7 @@ Section StructureNormalForm.
         apply filter_In; intuition.
         * apply finite_cover.
         * now apply finite_eqb_eq.
-      + rewrite automaton_relation_solution_characterise.
-        unfold automaton_relation_solution'.
+      + unfold automaton_relation_solution.
         eapply automaton_solution_halt.
         * apply automaton_solution_invariant.
           apply compute_automaton_solution_least_solution.
@@ -794,8 +793,7 @@ Section StructureNormalForm.
         apply filter_In; intuition.
         * apply finite_cover.
         * now apply finite_eqb_eq.
-      + rewrite automaton_relation_solution_characterise.
-        unfold automaton_relation_solution'.
+      + unfold automaton_relation_solution.
         eapply term_lequiv_trans; swap 1 2.
         * eapply automaton_solution_move with (a := a).
           -- apply automaton_solution_invariant.
@@ -931,8 +929,7 @@ Section StructureNormalForm.
              repeat rewrite Bool.orb_true_intro; intuition; right.
              unfold kleene_unit, monoid_unit; simpl.
              apply finite_eqb_eq; reflexivity.
-        * rewrite automaton_relation_solution_characterise.
-          unfold automaton_relation_solution'.
+        * unfold automaton_relation_solution.
           eapply automaton_solution_halt.
           -- apply automaton_solution_invariant.
             apply compute_automaton_solution_least_solution.
