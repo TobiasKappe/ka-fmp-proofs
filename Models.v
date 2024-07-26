@@ -2,10 +2,13 @@ Require Import Coq.Lists.List.
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.PropExtensionality.
 Require Import Coq.micromega.Lia.
+Require Import Coq.btauto.Btauto.
 
+Require Import KA.Booleans.
 Require Import KA.Finite.
 Require Import KA.Scope.
 Require Import KA.Terms.
+Require Import KA.Vectors.
 Require Import KA.Structure.
 Local Open Scope ka_scope.
 
@@ -593,6 +596,537 @@ Section StarContinuity.
   Qed.
 End StarContinuity.
 
+Section FiniteRelationalModels.
+  Program Definition monoid_finite_relational
+    (X: Type)
+    `{Finite X}
+  :
+    monoid (X -> X -> bool)
+  := {|
+    monoid_compose := matrix_product_bool;
+    monoid_unit := finite_eqb;
+  |}.
+  Next Obligation.
+    apply matrix_product_bool_associative.
+  Qed.
+  Next Obligation.
+    apply matrix_product_bool_unit_right.
+  Qed.
+  Next Obligation.
+    apply matrix_product_bool_unit_left.
+  Qed.
+
+  Definition matrix_plus
+    {X: Type}
+    (R1 R2: X -> X -> bool)
+    (x1 x2: X)
+  :=
+    orb (R1 x1 x2) (R2 x1 x2)
+  .
+
+  Lemma matrix_plus_commute
+    {X: Type}
+    (R1 R2: X -> X -> bool)
+  :
+    matrix_plus R1 R2 =
+    matrix_plus R2 R1
+  .
+  Proof.
+    extensionality x1; extensionality x2.
+    unfold matrix_plus; btauto.
+  Qed.
+
+  Definition matrix_empty
+    {X: Type}
+    (x1 x2: X)
+  :=
+    false
+  .
+
+  Global Program Instance matrix_order
+    (X: Type)
+  :
+    PartialOrderZero (X -> X -> bool)
+  := {|
+    partial_order_rel xs1 xs2 :=
+      forall x1 x2, xs1 x1 x2 = true -> xs2 x1 x2 = true;
+    partial_order_zero := matrix_empty;
+  |}.
+  Next Obligation.
+    extensionality x; extensionality x'.
+    destruct (x1 x x') eqn:?;
+    destruct (x2 x x') eqn:?;
+    intuition.
+    - apply H in Heqb.
+      congruence.
+    - apply H0 in Heqb0.
+      congruence.
+  Qed.
+
+  Definition matrix_iterate
+    {X: Type}
+    `{Finite X}
+    (Rbias Rstep R: X -> X -> bool)
+  :=
+    matrix_plus Rbias (matrix_product_bool Rstep R)
+  .
+
+  Program Definition matrix_star
+    {X: Type}
+    `{Finite X}
+    (R: X -> X -> bool)
+  :=
+    mono_fixpoint (matrix_iterate finite_eqb R)
+  .
+
+  Lemma matrix_plus_partial_order_rel
+    {X: Type}
+    (R1 R2: X -> X -> bool)
+  :
+    matrix_plus R1 R2 = R2 <->
+    partial_order_rel R1 R2
+  .
+  Proof.
+    split; intros.
+    - simpl; intros.
+      rewrite <- H.
+      unfold matrix_plus.
+      now rewrite H0.
+    - extensionality x; extensionality x'.
+      unfold matrix_plus.
+      destruct (R1 x x') eqn:?.
+      + apply H in Heqb.
+        now rewrite Heqb.
+      + reflexivity.
+  Qed.
+
+  Lemma matrix_plus_monotone
+    {X: Type}
+    (R1 R2 R1' R2': X -> X -> bool)
+  :
+    partial_order_rel R1 R1' ->
+    partial_order_rel R2 R2' ->
+    partial_order_rel (matrix_plus R1 R2) (matrix_plus R1' R2')
+  .
+  Proof.
+    simpl; unfold matrix_plus; intros.
+    apply Bool.orb_true_iff.
+    apply Bool.orb_true_iff in H1.
+    destruct H1; firstorder.
+  Qed.
+
+  Lemma matrix_product_monotone
+    {X: Type}
+    `{Finite X}
+    (R1 R2 R1' R2': X -> X -> bool)
+  :
+    partial_order_rel R1 R1' ->
+    partial_order_rel R2 R2' ->
+    partial_order_rel (matrix_product_bool R1 R2)
+                      (matrix_product_bool R1' R2')
+  .
+  Proof.
+    simpl; unfold matrix_product_bool, vector_inner_product_bool; intros.
+    apply disj_true in H2.
+    apply in_map_iff in H2.
+    destruct H2 as [x [? _]].
+    apply Bool.andb_true_iff in H2.
+    destruct H2.
+    apply disj_true.
+    apply in_map_iff.
+    eexists; intuition.
+  Qed.
+
+  Lemma matrix_iterate_monotone
+    {X: Type}
+    `{Finite X}
+    (R Rbias: X -> X -> bool)
+  :
+    monotone (matrix_iterate Rbias R)
+  .
+  Proof.
+    split; intros.
+    unfold matrix_iterate.
+    apply matrix_plus_monotone.
+    - apply partial_order_refl.
+    - apply matrix_product_monotone; auto.
+      apply partial_order_refl.
+  Qed.
+
+  Lemma matrix_plus_split
+    {X: Type}
+    (R1 R2 R3: X -> X -> bool)
+  :
+    partial_order_rel R1 R3 ->
+    partial_order_rel R2 R3 ->
+    partial_order_rel (matrix_plus R1 R2) R3
+  .
+  Proof.
+    simpl; intros.
+    unfold matrix_plus in H1.
+    apply Bool.orb_true_iff in H1.
+    destruct H1; intuition.
+  Qed.
+
+  Lemma matrix_plus_covered_left
+    {X: Type}
+    (R1 R2: X -> X -> bool)
+  :
+    partial_order_rel R1 (matrix_plus R1 R2)
+  .
+  Proof.
+    simpl; intros.
+    unfold matrix_plus.
+    now rewrite H.
+  Qed.
+
+  Fixpoint matrix_power
+    {X: Type}
+    `{Finite X}
+    (R: X -> X -> bool)
+    (n: nat)
+  :=
+    match n with
+    | 0%nat => finite_eqb
+    | S n => matrix_product_bool R (matrix_power R n)
+    end
+  .
+
+  Fixpoint matrix_power_series
+    {X: Type}
+    `{Finite X}
+    (R1 R2: X -> X -> bool)
+    (n: nat)
+  :=
+    match n with
+    | 0%nat => matrix_empty
+    | S n => matrix_plus (matrix_power_series R1 R2 n)
+                         (matrix_product_bool (matrix_power R1 n) R2)
+    end
+  .
+
+  Lemma matrix_product_empty_left
+    {X: Type}
+    `{Finite X}
+    (R: X -> X -> bool)
+  :
+    matrix_product_bool matrix_empty R = matrix_empty
+  .
+  Proof.
+    extensionality x1; extensionality x2.
+    unfold matrix_product_bool, matrix_empty, vector_inner_product_bool.
+    apply disj_false; intros.
+    apply in_map_iff in H0.
+    destruct H0 as [? [? ?]].
+    now simpl in H0.
+  Qed.
+
+  Lemma matrix_product_empty_right
+    {X: Type}
+    `{Finite X}
+    (R: X -> X -> bool)
+  :
+    matrix_product_bool R matrix_empty = matrix_empty
+  .
+  Proof.
+    extensionality x1; extensionality x2.
+    unfold matrix_product_bool, matrix_empty, vector_inner_product_bool.
+    apply disj_false; intros.
+    apply in_map_iff in H0.
+    destruct H0 as [? [? ?]].
+    now rewrite Bool.andb_false_r in H0.
+  Qed.
+
+  Lemma matrix_product_distribute_right
+    {X: Type}
+    `{Finite X}
+    (R1 R2 R3: X -> X -> bool)
+  :
+    matrix_product_bool (matrix_plus R1 R2) R3 =
+    matrix_plus (matrix_product_bool R1 R3)
+                (matrix_product_bool R2 R3)
+  .
+  Proof.
+    extensionality x; extensionality x'.
+    unfold matrix_product_bool, vector_inner_product_bool, matrix_plus.
+    apply Bool.eq_bool_prop_intro; split; intros.
+    - apply Bool.Is_true_eq_true in H0.
+      apply Bool.Is_true_eq_left.
+      apply Bool.orb_true_iff.
+      apply disj_true in H0.
+      apply in_map_iff in H0.
+      destruct H0 as [x'' [? _]].
+      apply Bool.andb_true_iff in H0; destruct H0.
+      apply Bool.orb_true_iff in H0; destruct H0.
+      + left; apply disj_true.
+        apply in_map_iff.
+        eexists; intuition.
+      + right; apply disj_true.
+        apply in_map_iff.
+        eexists; intuition.
+    - apply Bool.Is_true_eq_true in H0.
+      apply Bool.orb_true_iff in H0.
+      apply Bool.Is_true_eq_left.
+      apply disj_true.
+      apply in_map_iff.
+      destruct H0.
+      + apply disj_true in H0.
+        apply in_map_iff in H0.
+        destruct H0 as [x'' [? _]].
+        eexists; intuition.
+      + apply disj_true in H0.
+        apply in_map_iff in H0.
+        destruct H0 as [x'' [? _]].
+        eexists; intuition.
+  Qed.
+
+  Lemma matrix_product_distribute_left
+    {X: Type}
+    `{Finite X}
+    (R1 R2 R3: X -> X -> bool)
+  :
+    matrix_product_bool R1 (matrix_plus R2 R3) =
+    matrix_plus (matrix_product_bool R1 R2)
+                (matrix_product_bool R1 R3)
+  .
+  Proof.
+    extensionality x; extensionality x'.
+    unfold matrix_product_bool, vector_inner_product_bool, matrix_plus.
+    apply Bool.eq_bool_prop_intro; split; intros.
+    - apply Bool.Is_true_eq_true in H0.
+      apply Bool.Is_true_eq_left.
+      apply Bool.orb_true_iff.
+      apply disj_true in H0.
+      apply in_map_iff in H0.
+      destruct H0 as [x'' [? _]].
+      apply Bool.andb_true_iff in H0; destruct H0.
+      apply Bool.orb_true_iff in H1; destruct H1.
+      + left; apply disj_true.
+        apply in_map_iff.
+        eexists; intuition.
+      + right; apply disj_true.
+        apply in_map_iff.
+        eexists; intuition.
+    - apply Bool.Is_true_eq_true in H0.
+      apply Bool.orb_true_iff in H0.
+      apply Bool.Is_true_eq_left.
+      apply disj_true.
+      apply in_map_iff.
+      destruct H0.
+      + apply disj_true in H0.
+        apply in_map_iff in H0.
+        destruct H0 as [x'' [? _]].
+        eexists; intuition.
+      + apply disj_true in H0.
+        apply in_map_iff in H0.
+        destruct H0 as [x'' [? _]].
+        eexists; intuition.
+  Qed.
+
+  Lemma matrix_power_series_assoc
+    {X: Type}
+    `{Finite X}
+    (R1 R2 R3: X -> X -> bool)
+    (n: nat)
+  :
+    matrix_product_bool (matrix_power_series R1 R2 n) R3 =
+    matrix_power_series R1 (matrix_product_bool R2 R3) n
+  .
+  Proof.
+    induction n; simpl.
+    - now rewrite matrix_product_empty_left.
+    - rewrite matrix_product_distribute_right.
+      rewrite <- matrix_product_bool_associative.
+      now rewrite IHn.
+  Qed.
+
+  Lemma matrix_plus_unit_right
+    {X: Type}
+    (R: X -> X -> bool)
+  :
+    matrix_plus R matrix_empty = R
+  .
+  Proof.
+    extensionality x1; extensionality x2.
+    unfold matrix_plus, matrix_empty; btauto.
+  Qed.
+
+  Lemma matrix_plus_associative
+    {X: Type}
+    (R1 R2 R3: X -> X -> bool)
+  :
+    matrix_plus (matrix_plus R1 R2) R3 =
+    matrix_plus R1 (matrix_plus R2 R3)
+  .
+  Proof.
+    extensionality x; extensionality x'.
+    unfold matrix_plus; btauto.
+  Qed.
+
+  Lemma matrix_power_series_unfold
+    {X: Type}
+    `{Finite X}
+    (R1 R2: X -> X -> bool)
+    (n: nat)
+  :
+    matrix_plus R2 (matrix_product_bool R1 (matrix_power_series R1 R2 n)) =
+    matrix_plus (matrix_power_series R1 R2 n)
+      (matrix_product_bool (matrix_power R1 n) R2)
+  .
+  Proof.
+    induction n; simpl.
+    - rewrite matrix_product_empty_right.
+      rewrite matrix_plus_unit_right.
+      rewrite matrix_plus_commute.
+      rewrite matrix_plus_unit_right.
+      rewrite matrix_product_bool_unit_left.
+      reflexivity.
+    - rewrite matrix_product_distribute_left.
+      rewrite <- matrix_plus_associative.
+      rewrite matrix_product_bool_associative.
+      now rewrite IHn.
+  Qed.
+
+  Lemma iterate_power_series
+    {X: Type}
+    `{Finite X}
+    (R1 R2: X -> X -> bool)
+    (n: nat)
+  :
+    iterate (matrix_iterate R2 R1) partial_order_zero n =
+    matrix_power_series R1 R2 n
+  .
+  Proof.
+    induction n; simpl.
+    - reflexivity.
+    - simpl in IHn; rewrite IHn.
+      unfold matrix_iterate.
+      apply matrix_power_series_unfold.
+  Qed.
+
+  Lemma iterate_distribute_right
+    {X: Type}
+    `{Finite X}
+    (R1 R2 R3: X -> X -> bool)
+    (n: nat)
+  :
+    matrix_product_bool (iterate (matrix_iterate R2 R1) partial_order_zero n) R3 =
+    iterate (matrix_iterate (matrix_product_bool R2 R3) R1) partial_order_zero n
+  .
+  Proof.
+    repeat rewrite iterate_power_series.
+    apply matrix_power_series_assoc.
+  Qed.
+
+  Lemma matrix_iterate_shift_fixpoint
+    {X: Type}
+    `{Finite X}
+    (R Rbias: X -> X -> bool)
+  :
+    matrix_product_bool (mono_fixpoint (matrix_iterate finite_eqb R)) Rbias =
+    mono_fixpoint (matrix_iterate Rbias R)
+  .
+  Proof.
+    apply partial_order_antisym.
+    - unfold mono_fixpoint.
+      rewrite iterate_distribute_right.
+      rewrite matrix_product_bool_unit_left.
+      apply partial_order_refl.
+    - apply mono_fixpoint_least.
+      + apply matrix_iterate_monotone.
+      + unfold matrix_iterate at 1.
+        apply matrix_plus_split.
+        * rewrite <- matrix_product_bool_unit_left with (m := Rbias) at 1.
+          apply matrix_product_monotone.
+          -- rewrite <- mono_fixpoint_fixpoint.
+             ++ unfold matrix_iterate.
+                apply matrix_plus_covered_left.
+             ++ apply matrix_iterate_monotone.
+          -- apply partial_order_refl.
+        * rewrite <- matrix_product_bool_associative.
+          apply matrix_product_monotone.
+          -- eapply partial_order_trans
+               with (x2 := matrix_iterate finite_eqb R (mono_fixpoint (matrix_iterate finite_eqb R))).
+             ++ unfold matrix_iterate at 2.
+                rewrite matrix_plus_commute.
+                apply matrix_plus_covered_left.
+             ++ rewrite mono_fixpoint_fixpoint.
+                ** apply partial_order_refl.
+                ** apply matrix_iterate_monotone.
+          -- apply partial_order_refl.
+  Qed.
+
+  Program Definition kleene_algebra_finite_relational
+    (X: Type)
+    `{Finite X}
+  :
+    kleene_algebra (X -> X -> bool)
+  := {|
+    kleene_monoid := monoid_finite_relational X;
+    kleene_plus := matrix_plus;
+    kleene_zero := matrix_empty;
+    kleene_star := matrix_star;
+  |}.
+  Next Obligation.
+    apply matrix_plus_associative.
+  Qed.
+  Next Obligation.
+    apply matrix_plus_unit_right.
+  Qed.
+  Next Obligation.
+    extensionality x1; extensionality x2.
+    unfold matrix_plus; btauto.
+  Qed.
+  Next Obligation.
+    apply matrix_plus_commute.
+  Qed.
+  Next Obligation.
+    apply matrix_product_empty_left.
+  Qed.
+  Next Obligation.
+    apply matrix_product_empty_right.
+  Qed.
+  Next Obligation.
+    apply matrix_product_distribute_left.
+  Qed.
+  Next Obligation.
+    apply matrix_product_distribute_right.
+  Qed.
+  Next Obligation.
+    unfold matrix_star.
+    rewrite <- mono_fixpoint_fixpoint at 2.
+    - reflexivity.
+    - split; simpl; intros.
+      unfold matrix_plus in *.
+      apply Bool.orb_prop in H1.
+      rewrite finite_eqb_eq in H1.
+      destruct H1.
+      + subst.
+        apply Bool.orb_true_iff; left.
+        now apply finite_eqb_eq.
+      + apply Bool.orb_true_iff; right.
+        unfold matrix_product_bool in *.
+        unfold vector_inner_product_bool in *.
+        apply disj_true.
+        apply in_map_iff.
+        apply disj_true in H1.
+        apply in_map_iff in H1.
+        destruct H1 as [? [? ?]].
+        eexists; intuition.
+  Qed.
+  Next Obligation.
+    apply matrix_plus_partial_order_rel.
+    apply matrix_plus_partial_order_rel in H0.
+    rewrite matrix_plus_commute in H0.
+    replace (matrix_plus x3 (matrix_product_bool x1 x2))
+      with (matrix_iterate x3 x1 x2) in H0 by reflexivity.
+    apply mono_fixpoint_least in H0.
+    - unfold matrix_star.
+      now rewrite matrix_iterate_shift_fixpoint.
+    - apply matrix_iterate_monotone.
+  Qed.
+End FiniteRelationalModels.
+
 Section EquationalTheories.
   Definition kleene_satisfies
     {A X: Type}
@@ -629,9 +1163,8 @@ Section EquationalTheories.
   Variant kleene_finite_relational:
     forall {X: Type}, kleene_algebra X -> Prop :=
   | KleeneFiniteRelational:
-      forall (X: Type),
-        Finite X ->
-        kleene_finite_relational (kleene_algebra_relational X)
+      forall (X: Type) `{Finite X},
+        kleene_finite_relational (kleene_algebra_finite_relational X)
   .
 
   Lemma kleene_class_contained_preserves
