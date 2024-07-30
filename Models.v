@@ -3,6 +3,7 @@ Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.PropExtensionality.
 Require Import Coq.micromega.Lia.
 Require Import Coq.btauto.Btauto.
+Require Import Coq.Program.Basics.
 
 Require Import KA.Booleans.
 Require Import KA.Finite.
@@ -10,7 +11,10 @@ Require Import KA.Scope.
 Require Import KA.Terms.
 Require Import KA.Vectors.
 Require Import KA.Structure.
+Require Import KA.Utilities.
+
 Local Open Scope ka_scope.
+Local Open Scope program_scope.
 
 Section RelationalModels.
   Definition monoid_relational_unit {X: Type} (x x': X) := x = x'.
@@ -1220,3 +1224,168 @@ Section EquationalTheories.
     typeclasses eauto.
   Qed.
 End EquationalTheories.
+
+Section RelationalVsFiniteRelational.
+  Definition kleene_finite_relational_to_relational
+    {X: Type}
+    (f: X -> X -> bool)
+    (x x': X)
+  :
+    Prop
+  :=
+    f x x' = true
+  .
+
+  Lemma kleene_finite_relational_to_relational_injective
+    {X: Type}
+    (f1 f2: X -> X -> bool)
+  :
+    kleene_finite_relational_to_relational f1 =
+    kleene_finite_relational_to_relational f2 ->
+    f1 = f2
+  .
+  Proof.
+    intros.
+    extensionality x; extensionality x'.
+    unfold kleene_finite_relational_to_relational in H.
+    apply function_instantiation with (x := x) in H.
+    apply function_instantiation with (x := x') in H.
+    apply Bool.eq_true_iff_eq.
+    now rewrite H.
+  Qed.
+
+  Lemma kleene_finite_relational_to_relational_plus
+    {X: Type}
+    `{Finite X}
+  :
+    let K := kleene_algebra_finite_relational X in
+    let K' := kleene_algebra_relational X in
+    forall m m',
+      kleene_plus K' (kleene_finite_relational_to_relational m)
+                     (kleene_finite_relational_to_relational m') =
+      kleene_finite_relational_to_relational (kleene_plus K m m')
+  .
+  Proof.
+    simpl; intros.
+    extensionality x; extensionality x'; simpl.
+    unfold kleene_relational_plus.
+    unfold kleene_finite_relational_to_relational.
+    apply propositional_extensionality.
+    unfold matrix_plus.
+    now rewrite Bool.orb_true_iff.
+  Qed.
+
+  Lemma kleene_finite_relational_to_relational_multiply
+    {X: Type}
+    `{Finite X}
+  :
+    let K := kleene_algebra_finite_relational X in
+    let K' := kleene_algebra_relational X in
+    forall m m',
+      kleene_multiply K' (kleene_finite_relational_to_relational m)
+                     (kleene_finite_relational_to_relational m') =
+      kleene_finite_relational_to_relational (kleene_multiply K m m')
+  .
+  Proof.
+    simpl; unfold kleene_multiply; intros.
+    extensionality x; extensionality x'; simpl.
+    unfold monoid_relational_compose.
+    unfold kleene_finite_relational_to_relational.
+    apply propositional_extensionality.
+    now rewrite matrix_product_characterise.
+  Qed.
+
+  Lemma kleene_finite_relational_to_relational_star
+    {X: Type}
+    `{Finite X}
+  :
+    let K := kleene_algebra_finite_relational X in
+    let K' := kleene_algebra_relational X in
+    forall m,
+      kleene_star K' (kleene_finite_relational_to_relational m) =
+      kleene_finite_relational_to_relational (kleene_star K m)
+  .
+  Proof.
+    simpl; intros.
+    extensionality x; extensionality x'; simpl.
+    unfold kleene_finite_relational_to_relational.
+    apply propositional_extensionality.
+    unfold matrix_star; intuition.
+    - induction H0.
+      + rewrite <- mono_fixpoint_fixpoint.
+        * unfold matrix_iterate, matrix_plus.
+          rewrite Bool.orb_true_iff; left.
+          now rewrite finite_eqb_eq.
+        * apply matrix_iterate_monotone.
+      + rewrite <- mono_fixpoint_fixpoint.
+        * unfold matrix_iterate, matrix_plus.
+          rewrite Bool.orb_true_iff; right.
+          apply matrix_product_characterise; eexists.
+          intuition eauto.
+        * apply matrix_iterate_monotone.
+    - unfold mono_fixpoint in H0.
+      revert x x' H0;
+      generalize (length (@finite_enum _ (@matrix_finite X X H H))); intro.
+      induction n; intros.
+      + simpl in H0.
+        unfold matrix_empty in H0.
+        discriminate.
+      + simpl in H0.
+        unfold matrix_iterate in H0 at 1.
+        unfold matrix_plus in H0.
+        rewrite Bool.orb_true_iff in H0.
+        destruct H0.
+        * rewrite finite_eqb_eq in H0; subst.
+          apply KleeneRelationalStarBase.
+        * rewrite matrix_product_characterise in H0.
+          destruct H0 as [x'' [? ?]].
+          eapply KleeneRelationalStarStep; eauto.
+  Qed.
+
+  Lemma kleene_finite_relational_to_relational_commute
+    {X A: Type}
+    `{Finite X}
+    (h: A -> X -> X -> bool)
+    (t: term A)
+  :
+  kleene_finite_relational_to_relational
+    (kleene_interp (kleene_algebra_finite_relational X) h t) =
+  kleene_interp (kleene_algebra_relational X)
+                (kleene_finite_relational_to_relational ∘ h) t
+  .
+  Proof.
+    induction t; autorewrite with kleene_interp.
+    - simpl.
+      unfold kleene_finite_relational_to_relational.
+      unfold kleene_relational_zero.
+      unfold matrix_empty.
+      extensionality x; extensionality x'.
+      apply propositional_extensionality.
+      intuition.
+    - unfold kleene_unit; simpl.
+      unfold monoid_relational_unit.
+      unfold kleene_finite_relational_to_relational.
+      extensionality x; extensionality x'.
+      apply propositional_extensionality.
+      now rewrite finite_eqb_eq.
+    - reflexivity.
+    - rewrite <- kleene_finite_relational_to_relational_plus; congruence.
+    - rewrite <- kleene_finite_relational_to_relational_multiply; congruence.
+    - rewrite <- kleene_finite_relational_to_relational_star; congruence.
+  Qed.
+
+  Lemma kleene_preserve_equation_relational_finite_relational
+    {A: Type}
+    (t1 t2: term A)
+  :
+    kleene_satisfies_class (@kleene_relational) t1 t2 ->
+    kleene_satisfies_class (@kleene_finite_relational) t1 t2
+  .
+  Proof.
+    unfold kleene_satisfies_class, kleene_satisfies; intros.
+    destruct H0.
+    apply kleene_finite_relational_to_relational_injective.
+    repeat rewrite kleene_finite_relational_to_relational_commute.
+    now apply H.
+  Qed.
+End RelationalVsFiniteRelational.
