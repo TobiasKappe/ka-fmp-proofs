@@ -31,6 +31,36 @@ Section StructureDefinitions.
   }.
   Arguments monoid X : clear implicits.
 
+  Equations monoid_interp
+    {X A: Type}
+    (M: monoid X)
+    (h: A -> X)
+    (w: list A)
+  :
+    X
+  := {
+    monoid_interp M h nil := monoid_unit M;
+    monoid_interp M h (a :: w) := monoid_compose M (h a) (monoid_interp M h w);
+  }.
+
+  Lemma monoid_interp_app
+    {X A: Type}
+    (M: monoid X)
+    (h: A -> X)
+    (w1 w2: list A)
+  :
+    monoid_interp M h (w1 ++ w2) =
+    monoid_compose M (monoid_interp M h w1) (monoid_interp M h w2)
+  .
+  Proof.
+    induction w1; simpl.
+    - autorewrite with monoid_interp.
+      now rewrite monoid_unit_right.
+    - autorewrite with monoid_interp.
+      rewrite monoid_compose_assoc.
+      congruence.
+  Qed.
+
   Record kleene_algebra {X: Type} := {
     kleene_monoid: monoid X;
     kleene_plus: X -> X -> X;
@@ -579,22 +609,19 @@ Section StructureFromAutomaton.
   .
 
   Lemma kleene_interp_witness_construct
-    {Q: Type}
-    `{Finite Q}
-    (aut: automaton Q)
+    {X: Type}
+    `{Finite X}
+    (M: monoid X)
     (t: term)
-    (m: Q -> Q -> bool)
+    (h: A -> X)
+    (x: X)
   :
-    kleene_interp (automaton_kleene_algebra aut)
-                  (automaton_kleene_algebra_embed aut)
-                  t m = true ->
-    exists w,
-      automaton_transition_matrix aut w = m /\
-      term_matches t w
+    let h' a := finite_eqb (h a) in
+    kleene_interp (monoid_to_kleene_algebra M) h' t x = true ->
+    exists w, monoid_interp M h w = x /\ term_matches t w
   .
   Proof.
-    revert aut m; dependent induction t; intros;
-    autorewrite with derivative_write in H0;
+    revert x; dependent induction t; intros;
     autorewrite with kleene_interp in H0;
     simpl in H0.
     - discriminate.
@@ -602,12 +629,11 @@ Section StructureFromAutomaton.
       apply finite_eqb_eq in H0; subst.
       exists nil; intuition.
       constructor.
-    - unfold automaton_kleene_algebra_embed in H0.
-      apply finite_eqb_eq in H0; subst.
-      exists (a :: nil).
-      autorewrite with automaton_transition_matrix.
-      rewrite matrix_product_bool_unit_right; intuition.
-      constructor.
+    - apply finite_eqb_eq in H0; subst.
+      exists (a :: nil); intuition.
+      + autorewrite with monoid_interp.
+        now rewrite monoid_unit_left.
+      + constructor.
     - apply powerset_union_characterise in H0; destruct H0.
       + apply IHt1 in H0.
         destruct H0 as [w [? ?]].
@@ -622,14 +648,14 @@ Section StructureFromAutomaton.
       destruct H0 as [m1 [m2 [? [? ?]]]]; subst.
       apply IHt1 in H0; destruct H0 as [w1 [? ?]]; subst.
       apply IHt2 in H1; destruct H1 as [w2 [? ?]]; subst.
-      exists (w1 ++ w2); simpl.
-      rewrite automaton_transition_matrix_app; intuition.
-      now constructor.
+      exists (w1 ++ w2); intuition.
+      + apply monoid_interp_app.
+      + now constructor.
     - unfold mono_fixpoint in H0; revert H0.
       match goal with
       | |- context [ length ?l ] => generalize (length l)
       end.
-      intros n; revert m.
+      intros n; revert x.
       induction n; simpl; intros.
       + discriminate.
       + unfold kleene_star_step in H0 at 1.
@@ -639,49 +665,47 @@ Section StructureFromAutomaton.
           destruct H0 as [m1 [m2 [? [? ?]]]].
           apply IHn in H1; destruct H1 as [w2 [? ?]]; subst.
           apply IHt in H0; destruct H0 as [w1 [? ?]]; subst.
-          exists (w1 ++ w2).
-          rewrite automaton_transition_matrix_app.
-          intuition (now constructor).
+          exists (w1 ++ w2); intuition.
+          -- apply monoid_interp_app.
+          -- now now constructor.
         * exists nil.
           apply finite_eqb_eq in H0; subst.
           intuition constructor.
   Qed.
 
   Lemma kleene_interp_witness_apply
-    {Q: Type}
-    `{Finite Q}
-    (aut: automaton Q)
+    {X: Type}
+    `{Finite X}
+    (M: monoid X)
     (t: term)
+    (h: A -> X)
     (w: list A)
   :
+    let h' a := finite_eqb (h a) in
     term_matches t w ->
-    kleene_interp (automaton_kleene_algebra aut)
-                  (automaton_kleene_algebra_embed aut)
-                  t
-                  (automaton_transition_matrix aut w)
-      = true
+    kleene_interp (monoid_to_kleene_algebra M) h' t
+                  (monoid_interp M h w) = true
   .
   Proof.
-    intros; revert aut.
+    simpl; intros.
     dependent induction H0; intros;
     autorewrite with kleene_interp;
-    autorewrite with automaton_transition_matrix;
     simpl.
     - unfold kleene_unit; simpl.
       now apply finite_eqb_eq.
-    - unfold automaton_kleene_algebra_embed.
-      apply finite_eqb_eq.
-      now rewrite matrix_product_bool_unit_right.
+    - apply finite_eqb_eq.
+      autorewrite with monoid_interp.
+      now rewrite monoid_unit_left.
     - apply powerset_union_characterise.
       rewrite IHterm_matches; intuition btauto.
     - apply powerset_union_characterise.
       rewrite IHterm_matches; intuition btauto.
     - unfold kleene_multiply; simpl.
       apply powerset_multiplication_characterise.
-      exists (automaton_transition_matrix aut w1).
-      exists (automaton_transition_matrix aut w2).
+      exists (monoid_interp M h w1).
+      exists (monoid_interp M h w2).
       intuition; simpl.
-      now rewrite automaton_transition_matrix_app.
+      now rewrite monoid_interp_app.
     - rewrite <- mono_fixpoint_fixpoint.
       + unfold kleene_star_step.
         apply powerset_union_characterise; right.
@@ -691,12 +715,10 @@ Section StructureFromAutomaton.
       + unfold kleene_star_step at 1.
         apply powerset_union_characterise; left.
         apply powerset_multiplication_characterise.
-        exists (automaton_transition_matrix aut w1).
-        exists (automaton_transition_matrix aut w2).
+        exists (monoid_interp M h w1).
+        exists (monoid_interp M h w2).
         intuition.
-        * specialize (IHterm_matches2 aut).
-          now autorewrite with kleene_interp in IHterm_matches2.
-        * now rewrite automaton_transition_matrix_app.
+        now rewrite monoid_interp_app.
       + apply kleene_star_step_mono.
   Qed.
 End StructureFromAutomaton.
@@ -706,6 +728,22 @@ Section StructureNormalForm.
   Context `{Finite A}.
   Notation automaton := (automaton A).
   Notation term := (term A).
+
+  Lemma automaton_transition_matrix_monoid_interp
+    {Q: Type}
+    `{Finite Q}
+    (aut: automaton Q)
+    (w: list A)
+  :
+    automaton_transition_matrix aut w =
+    monoid_interp (automaton_monoid aut) (aut_transitions aut) w
+  .
+  Proof.
+    induction w;
+    autorewrite with monoid_interp;
+    autorewrite with automaton_transition_matrix;
+    simpl; congruence.
+  Qed.
 
   Lemma automaton_kleene_algebra_interp_upper
     (t: term)
@@ -730,13 +768,11 @@ Section StructureNormalForm.
     apply andb_prop in H2.
     destruct H2 as [? ?].
     eapply term_lequiv_trans.
-    eapply automaton_relation_solution_bound.
-    rewrite H0 in H2.
-    apply H2.
-    apply H4.
-    eapply term_lequiv_trans.
-    - apply antimirov_solution_upper_bound.
-    - now apply initial_cover.
+    - eapply automaton_relation_solution_bound; eauto.
+      rewrite <- H0, <- automaton_transition_matrix_monoid_interp; eauto.
+    - eapply term_lequiv_trans.
+      + apply antimirov_solution_upper_bound.
+      + now apply initial_cover.
   Qed.
 
   Lemma automaton_kleene_algebra_interp_lower
