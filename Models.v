@@ -1205,8 +1205,6 @@ Section EquationalTheories.
     destruct H; apply kleene_finite_star_continuous.
   Qed.
 
-  Import FinitePredicates.
-
   Lemma kleene_preserve_equation_finite_finite_relational
     {A X: Type}
     (K: kleene_algebra X)
