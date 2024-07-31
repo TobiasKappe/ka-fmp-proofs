@@ -1498,3 +1498,422 @@ Section FiniteWords.
         dependent destruction H0.
   Qed.
 End FiniteWords.
+
+Section FiniteEmbedding.
+  Equations substring
+    {A: Type}
+    (w: list A)
+    (p0 p1: position (S (length w)))
+  :
+    list A + unit
+  := {
+    substring _ PHere PHere :=
+      inl nil;
+    substring (a :: w) PHere (PThere p1) :=
+      match substring w PHere p1 with
+      | inl w => inl (a :: w)
+      | inr _ => inr tt
+      end;
+    substring (a :: w) (PThere p0) (PThere p1) :=
+      substring w p0 p1;
+    substring _ (PThere p0) PHere :=
+      inr tt;
+  }.
+
+  Equations embed_word
+    {A: Type}
+    `{Finite A}
+    (w: list A)
+    (a: A)
+    (p0 p1: position (S (length w)))
+  :
+    bool
+  := {
+    embed_word (a :: w) b PHere (PThere PHere) :=
+      finite_eqb a b;
+    embed_word (a :: w) b (PThere p0) (PThere p1) :=
+      embed_word w b p0 p1;
+    embed_word _ _ _ _ :=
+      false;
+  }.
+
+  Definition position_dec
+    (n: nat)
+    (p0 p1: position n)
+  :
+    {p0 = p1} + {p0 <> p1}
+  .
+  Proof.
+    dependent induction n;
+    dependent destruction p0.
+    - dependent destruction p1.
+      + now left.
+      + now right.
+    - dependent destruction p1.
+      + now right.
+      + destruct (IHn p0 p1).
+        * left; congruence.
+        * right; contradict n0; inversion n0.
+          now apply EqDec.inj_right_pair in H0.
+  Qed.
+
+  Equations position_enum (n: nat): list (position n) := {
+    position_enum 0 := nil;
+    position_enum (S n) :=
+      PHere :: map PThere (position_enum n);
+  }.
+
+  Program Global Instance position_finite
+    (n: nat)
+  :
+    Finite (position n)
+  := {
+    finite_dec := position_dec n;
+    finite_enum := position_enum n;
+  }.
+  Next Obligation.
+    induction n;
+    dependent destruction x;
+    autorewrite with position_enum.
+    - now left.
+    - right; apply in_map_iff.
+      exists x; intuition.
+  Qed.
+  Next Obligation.
+    induction n; autorewrite with position_enum; constructor.
+    - intro; apply in_map_iff in H.
+      destruct H as [p [? ?]].
+      discriminate.
+    - apply NoDup_map; auto.
+      intros; inversion H.
+      now apply EqDec.inj_right_pair in H1.
+  Qed.
+
+  Definition kleene_finite_words
+    {A: Type}
+    (w: list A)
+  :=
+    kleene_algebra_finite_relational (position (S (length w)))
+  .
+
+  Lemma substring_nil
+    {A: Type}
+    `{Finite A}
+    (w: list A)
+    (p0 p1: position (S (length w)))
+  :
+    substring w p0 p1 = inl nil ->
+    p0 = p1
+  .
+  Proof.
+    intros; dependent induction w.
+    - dependent destruction p0.
+      + now repeat dependent destruction p1.
+      + dependent destruction p0.
+    - dependent destruction p0.
+      + dependent destruction p1; auto.
+        dependent destruction p1;
+        autorewrite with substring in H0.
+        * discriminate.
+        * destruct (substring w _ _);
+          discriminate.
+      + dependent destruction p1.
+        * now autorewrite with substring in H0.
+        * autorewrite with substring in H0.
+          f_equal; intuition.
+  Qed.
+
+  Lemma substring_single
+    {A: Type}
+    `{Finite A}
+    (a: A)
+    (w w0 w1: list A)
+    (p0 p1: position (S (length w)))
+  :
+    substring w p0 p1 = inl (a :: nil) ->
+    embed_word w a p0 p1 = true
+  .
+  Proof.
+    intros; dependent induction w.
+    - dependent destruction p0.
+      + dependent destruction p1.
+        * now autorewrite with substring in H0.
+        * dependent destruction p1.
+      + dependent destruction p0.
+    - dependent destruction p0.
+      + dependent destruction p1.
+        * now autorewrite with substring in H0.
+        * autorewrite with substring in H0.
+          destruct (substring w _ _) eqn:?; try discriminate.
+          inversion H0; subst.
+          clear IHw H0.
+          revert Heqs; dependent induction w; intros.
+          -- repeat dependent destruction p1.
+             autorewrite with embed_word.
+             now apply finite_eqb_eq.
+          -- dependent destruction p1.
+             ++ autorewrite with embed_word.
+                now apply finite_eqb_eq.
+             ++ autorewrite with embed_word.
+                autorewrite with substring in Heqs.
+                destruct (substring w _ _) eqn:?; discriminate.
+      + dependent destruction p1.
+        ++ now autorewrite with substring in H0.
+        ++ autorewrite with substring in H0.
+           autorewrite with embed_word.
+           intuition.
+  Qed.
+
+  Lemma substring_app
+    {A: Type}
+    `{Finite A}
+    (w w0 w1: list A)
+    (p0 p1: position (S (length w)))
+  :
+    substring w p0 p1 = inl (w0 ++ w1) ->
+    exists p2,
+      substring w p0 p2 = inl w0 /\
+      substring w p2 p1 = inl w1
+  .
+  Proof.
+    revert w0 w1 p0 p1; dependent induction w; intros.
+    - repeat dependent destruction p0.
+      repeat dependent destruction p1.
+      autorewrite with substring in H0; inversion H0.
+      symmetry in H2; apply app_eq_nil in H2; destruct H2; subst.
+      exists PHere; intuition.
+    - dependent destruction p0.
+      + dependent destruction p1.
+        * autorewrite with substring in H0; inversion H0.
+          symmetry in H2; apply app_eq_nil in H2; destruct H2; subst.
+          exists PHere; intuition.
+        * autorewrite with substring in H0.
+          destruct (substring w _ _) eqn:?; try discriminate.
+          inversion H0.
+          destruct w0; simpl in H2.
+          -- exists PHere; intuition.
+             autorewrite with substring.
+             now rewrite Heqs.
+          -- inversion H2; subst.
+             apply IHw in Heqs.
+             destruct Heqs as [p2 [? ?]].
+             exists (PThere p2).
+             autorewrite with substring; intuition.
+             now rewrite H1.
+      + dependent destruction p1.
+        * now autorewrite with substring in H0.
+        * autorewrite with substring in H0.
+          apply IHw in H0.
+          destruct H0 as [p2 [? ?]].
+          exists (PThere p2).
+          now autorewrite with substring.
+  Qed.
+
+  Lemma kleene_finite_embed
+    {A: Type}
+    `{Finite A}
+    (w x: list A)
+    (p0 p1: position (S (length w)))
+    (t: term A)
+  :
+    substring w p0 p1 = inl x ->
+    term_matches t x ->
+    kleene_interp (kleene_finite_words w) (embed_word w) t p0 p1 = true
+  .
+  Proof.
+    revert w x p0 p1; dependent induction t; intros.
+    - dependent destruction H1.
+    - dependent destruction H1.
+      autorewrite with kleene_interp.
+      unfold kleene_unit; simpl.
+      now apply finite_eqb_eq, substring_nil.
+    - dependent destruction H1.
+      autorewrite with kleene_interp.
+      now apply substring_single.
+    - autorewrite with kleene_interp.
+      simpl; unfold matrix_plus.
+      apply Bool.orb_true_iff.
+      dependent destruction H1.
+      + left; eapply IHt1; eauto.
+      + right; eapply IHt2; eauto.
+    - dependent destruction H1.
+      autorewrite with kleene_interp.
+      unfold kleene_multiply; simpl.
+      apply matrix_product_characterise.
+      apply substring_app in H0.
+      destruct H0 as [p2 [? ?]].
+      exists p2; intuition.
+    - autorewrite with kleene_interp; simpl.
+      dependent induction H1.
+      + unfold matrix_star.
+        rewrite <- mono_fixpoint_fixpoint
+          by apply matrix_iterate_monotone.
+        unfold matrix_iterate at 1, matrix_plus.
+        apply Bool.orb_true_iff.
+        left; now apply finite_eqb_eq, substring_nil.
+      + unfold matrix_star.
+        rewrite <- mono_fixpoint_fixpoint
+          by apply matrix_iterate_monotone.
+        unfold matrix_iterate at 1, matrix_plus.
+        apply Bool.orb_true_iff.
+        apply substring_app in H0.
+        destruct H0 as [p2 [? ?]]; right.
+        apply matrix_product_characterise.
+        exists p2; intuition.
+  Qed.
+
+  Lemma substring_nil'
+    {A: Type}
+    `{Finite A}
+    (w: list A)
+    (p: position (S (length w)))
+  :
+    substring w p p = inl nil
+  .
+  Proof.
+    dependent induction p;
+    autorewrite with substring.
+    - reflexivity.
+    - destruct w.
+      + dependent destruction p.
+      + autorewrite with substring.
+        intuition.
+  Qed.
+
+  Lemma substring_single'
+    {A: Type}
+    `{Finite A}
+    (a: A)
+    (w: list A)
+    (p0 p1: position (S (length w)))
+  :
+    embed_word w a p0 p1 = true ->
+    substring w p0 p1 = inl (a :: nil)
+  .
+  Proof.
+    dependent induction w.
+    - dependent destruction p0;
+      dependent destruction p1;
+      intuition.
+    - dependent destruction p0;
+      dependent destruction p1;
+      intuition.
+      + dependent destruction p1.
+        * autorewrite with embed_word in H0.
+          apply finite_eqb_eq in H0; subst.
+          now autorewrite with substring.
+        * now autorewrite with embed_word in H0.
+      + autorewrite with embed_word in H0.
+        autorewrite with substring.
+        intuition.
+  Qed.
+
+  Lemma substring_app'
+    {A: Type}
+    `{Finite A}
+    (w w0 w1: list A)
+    (p0 p1 p2: position (S (length w)))
+  :
+    substring w p0 p2 = inl w0 ->
+    substring w p2 p1 = inl w1 ->
+    substring w p0 p1 = inl (w0 ++ w1)
+  .
+  Proof.
+    intros.
+    dependent induction w.
+    - dependent destruction p0; try now dependent destruction p0.
+      dependent destruction p1; try now dependent destruction p1.
+      dependent destruction p2; try now dependent destruction p2.
+      autorewrite with substring in H0; inversion H0; subst.
+      autorewrite with substring in H1; inversion H1; subst.
+      now autorewrite with substring.
+    - dependent destruction p0.
+      + dependent destruction p1.
+        * dependent destruction p2.
+          -- autorewrite with substring in H0; inversion H0; subst.
+             autorewrite with substring in H1; inversion H1; subst.
+             now autorewrite with substring.
+          -- autorewrite with substring in H1; inversion H1; subst.
+        * dependent destruction p2.
+          -- now autorewrite with substring in H0; inversion H0; subst.
+          -- autorewrite with substring in H1.
+             autorewrite with substring in H0.
+             autorewrite with substring.
+             destruct (substring w PHere p2) eqn:?; try discriminate.
+             erewrite IHw; eauto.
+             now inversion H0.
+      + dependent destruction p1.
+        * dependent destruction p2.
+          -- now autorewrite with substring in H0.
+          -- now autorewrite with substring in H1.
+        * dependent destruction p2.
+          -- now autorewrite with substring in H0.
+          -- autorewrite with substring in H0.
+             autorewrite with substring in H1.
+             autorewrite with substring.
+             eapply IHw; eauto.
+  Qed.
+
+  Lemma kleene_finite_recover
+    {A: Type}
+    `{Finite A}
+    (w: list A)
+    (p0 p1: position (S (length w)))
+    (t: term A)
+  :
+    kleene_interp (kleene_finite_words w) (embed_word w) t p0 p1 = true ->
+    exists x,
+      substring w p0 p1 = inl x /\
+      term_matches t x
+  .
+  Proof.
+    revert w p0 p1; dependent induction t; intros;
+    autorewrite with kleene_interp in H0; simpl in H0.
+    - now (simpl in H0; unfold matrix_empty in H0).
+    - unfold kleene_unit in H0; simpl in H0.
+      apply finite_eqb_eq in H0; subst.
+      exists nil; rewrite substring_nil'.
+      intuition constructor.
+    - exists (a :: nil).
+      erewrite substring_single'; eauto.
+      intuition constructor.
+    - unfold matrix_plus in H0.
+      apply Bool.orb_true_iff in H0.
+      destruct H0.
+      + apply IHt1 in H0.
+        destruct H0 as [x [? ?]].
+        exists x; intuition now constructor.
+      + apply IHt2 in H0.
+        destruct H0 as [x [? ?]].
+        exists x; intuition now constructor.
+    - unfold kleene_multiply in H0; simpl in H0.
+      apply matrix_product_characterise in H0.
+      destruct H0 as [q3 [? ?]].
+      apply IHt1 in H0; destruct H0 as [x0 [? ?]].
+      apply IHt2 in H1; destruct H1 as [x1 [? ?]].
+      exists (x0 ++ x1).
+      intuition.
+      + eapply substring_app'; eauto.
+      + now constructor.
+    - unfold matrix_star in H0.
+      unfold mono_fixpoint in H0.
+      revert p0 p1 H0. match goal with
+      | |- context [ length ?n ] => generalize (length n)
+      end; intro; induction n; intros; simpl in H0.
+      + now unfold matrix_empty in H0.
+      + unfold matrix_iterate at 1, matrix_plus in H0.
+        apply Bool.orb_true_iff in H0.
+        destruct H0; intuition.
+        * apply finite_eqb_eq in H0; subst.
+          exists nil; intuition.
+          -- apply substring_nil'.
+          -- constructor.
+        * apply matrix_product_characterise in H0.
+          destruct H0 as [p2 [? ?]].
+          apply IHt in H0; destruct H0 as [x0 [? ?]].
+          apply IHn in H1; destruct H1 as [x1 [? ?]].
+          exists (x0 ++ x1); intuition.
+          -- eapply substring_app'; eauto.
+          -- now constructor.
+  Qed.
+End FiniteEmbedding.
