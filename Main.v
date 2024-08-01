@@ -5,7 +5,6 @@ Require Import Coq.Logic.PropExtensionality.
 Require Import KA.Finite.
 Require Import KA.Models.
 Require Import KA.Scope.
-Require Import KA.Structure.
 Require Import KA.Terms.
 Local Open Scope ka_scope.
 
