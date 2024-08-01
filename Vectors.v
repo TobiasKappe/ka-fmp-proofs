@@ -399,8 +399,8 @@ Section VectorProperties.
     split; intros.
     - intro x.
       unfold vector_lookup.
-      rewrite <- list_lookup_index at 2.
-      rewrite <- list_lookup_index at 3.
+      rewrite <- list_lookup_index with (x := x) at 2.
+      rewrite <- list_lookup_index with (x := x) at 3.
       apply H0.
     - intro p.
       unfold vector_index.
