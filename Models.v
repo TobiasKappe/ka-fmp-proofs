@@ -1813,3 +1813,212 @@ Section FiniteEmbedding.
     now rewrite H0.
   Qed.
 End FiniteEmbedding.
+
+Section StarContinuousEmbedding.
+  Equations kleene_interp_word
+    {X A: Type}
+    (K: kleene_algebra X)
+    (h: A -> X)
+    (w: list A)
+  :
+    X
+  := {
+    kleene_interp_word K h nil :=
+      kleene_unit K;
+    kleene_interp_word K h (a :: w) :=
+      kleene_multiply K (h a) (kleene_interp_word K h w);
+  }.
+
+  Lemma kleene_interp_word_app
+    {X A: Type}
+    (K: kleene_algebra X)
+    (h: A -> X)
+    (w1 w2: list A)
+  :
+    kleene_multiply K (kleene_interp_word K h w1)
+                      (kleene_interp_word K h w2) =
+    kleene_interp_word K h (w1 ++ w2)
+  .
+  Proof.
+    induction w1; simpl;
+    autorewrite with kleene_interp_word.
+    - unfold kleene_multiply, kleene_unit.
+      now rewrite monoid_unit_right.
+    - unfold kleene_multiply in *.
+      rewrite monoid_compose_assoc.
+      now rewrite IHw1.
+  Qed.
+
+  Lemma kleene_star_continuous_interp_lower
+    {X A: Type}
+    (K: kleene_algebra X)
+    (t: term A)
+    (h: A -> X)
+    (u v x: X)
+  :
+    kleene_star_continuous K ->
+    (forall (w: list A),
+      term_matches t w ->
+      let hwv := kleene_multiply K (kleene_interp_word K h w) v in
+      let lhs := kleene_multiply K u hwv in
+      kleene_plus K lhs x = x) ->
+    let htv := kleene_multiply K (kleene_interp K h t) v in
+    let lhs := kleene_multiply K u htv in
+    kleene_plus K lhs x = x
+  .
+  Proof.
+    simpl; revert u v; dependent induction t; intros;
+    autorewrite with kleene_interp.
+    - rewrite kleene_multiply_zero_left, kleene_multiply_zero_right.
+      now rewrite kleene_plus_commute, kleene_plus_unit.
+    - specialize (H0 nil).
+      autorewrite with kleene_interp_word in H.
+      apply H0; constructor.
+    - specialize (H0 (a :: nil)).
+      autorewrite with kleene_interp_word in H0.
+      unfold kleene_multiply in H0 at 3.
+      unfold kleene_unit in H0.
+      rewrite monoid_unit_left in H0.
+      apply H0; constructor.
+    - rewrite kleene_distribute_right.
+      rewrite kleene_distribute_left.
+      rewrite kleene_plus_assoc.
+      rewrite IHt2, IHt1; intuition.
+      + now apply H0, MatchPlusLeft.
+      + now apply H0, MatchPlusRight.
+    - unfold kleene_multiply in *.
+      rewrite monoid_compose_assoc.
+      rewrite IHt1; auto; intros.
+      rewrite <- monoid_compose_assoc.
+      rewrite IHt2; auto; intros.
+      rewrite monoid_compose_assoc.
+      rewrite <- monoid_compose_assoc with (x1 := kleene_interp_word K h w).
+      replace (monoid_compose _ (kleene_interp_word K h w)
+                                (kleene_interp_word K h w0))
+        with (kleene_interp_word K h (w ++ w0)).
+      + apply H0; now constructor.
+      + now rewrite <- kleene_interp_word_app.
+    - apply H; intros.
+    revert u v H0; induction n; simpl; intros.
+      + specialize (H0 nil).
+        autorewrite with kleene_interp_word in H0.
+        apply H0; now constructor.
+      + unfold kleene_multiply in *.
+        rewrite monoid_compose_assoc with (x1 := kleene_interp K h t).
+        rewrite <- monoid_compose_assoc with (x1 := u).
+        rewrite IHn; intuition.
+        rewrite monoid_compose_assoc.
+        rewrite IHt; intuition.
+        rewrite <- monoid_compose_assoc with (x1 := kleene_interp_word K h w0).
+        replace (monoid_compose _ (kleene_interp_word K h w0)
+                                  (kleene_interp_word K h w))
+          with (kleene_interp_word K h (w0 ++ w)).
+        * apply H0; now constructor.
+        * now rewrite <- kleene_interp_word_app.
+  Qed.
+
+  Lemma kleene_star_continuous_interp_lower'
+    {X A: Type}
+    (K: kleene_algebra X)
+    (t: term A)
+    (h: A -> X)
+    (x: X)
+  :
+    kleene_star_continuous K ->
+    (forall (w: list A),
+      term_matches t w ->
+      let lhs := kleene_interp_word K h w in
+      kleene_plus K lhs x = x) ->
+    let lhs := kleene_interp K h t in
+    kleene_plus K lhs x = x
+  .
+  Proof.
+  Admitted.
+
+  Lemma kleene_multiply_monotone
+    {X: Type}
+    (K: kleene_algebra X)
+    (x x' y y': X)
+  :
+    kleene_plus K x y = y ->
+    kleene_plus K x' y' = y' ->
+    kleene_plus K (kleene_multiply K x x') (kleene_multiply K y y') =
+    kleene_multiply K y y'
+  .
+  Proof.
+    intros.
+    rewrite <- H, <- H0.
+    rewrite kleene_distribute_left.
+    rewrite kleene_distribute_right.
+    repeat rewrite kleene_plus_assoc.
+    rewrite <- kleene_plus_assoc with (x1 := kleene_multiply K x x').
+    now rewrite kleene_plus_idempotent.
+  Qed.
+
+  Lemma kleene_star_continuous_interp_upper
+    {X A: Type}
+    (K: kleene_algebra X)
+    (t: term A)
+    (h: A -> X)
+    (w: list A)
+  :
+    term_matches t w ->
+    let lhs := kleene_interp_word K h w in
+    let rhs := kleene_interp K h t in
+    kleene_plus K lhs rhs = rhs
+  .
+  Proof.
+    simpl; revert w; induction t; intros;
+    autorewrite with kleene_interp;
+    autorewrite with kleene_interp_word.
+    - dependent destruction H.
+    - dependent destruction H.
+      now rewrite kleene_plus_idempotent.
+    - dependent destruction H.
+      autorewrite with kleene_interp_word.
+      unfold kleene_multiply, kleene_unit.
+      rewrite monoid_unit_left.
+      now rewrite kleene_plus_idempotent.
+    - dependent destruction H.
+      + rewrite <- kleene_plus_assoc.
+        now rewrite IHt1.
+      + rewrite kleene_plus_commute with (x1 := kleene_interp K h t1).
+        rewrite <- kleene_plus_assoc.
+        now rewrite IHt2.
+    - dependent destruction H.
+      rewrite <- kleene_interp_word_app.
+      apply kleene_multiply_monotone; intuition.
+    - dependent induction H.
+      + autorewrite with kleene_interp_word.
+        rewrite <- kleene_star_unroll at 1.
+        rewrite <- kleene_plus_assoc.
+        rewrite kleene_plus_idempotent.
+        now rewrite kleene_star_unroll.
+      + rewrite <- kleene_star_unroll.
+        rewrite <- kleene_plus_assoc.
+        rewrite kleene_plus_commute with (x2 := kleene_unit K).
+        rewrite kleene_plus_assoc.
+        f_equal; rewrite <- kleene_interp_word_app.
+        apply kleene_multiply_monotone.
+        * now apply IHt.
+        * now apply IHterm_matches2.
+  Qed.
+
+  Lemma kleene_preserve_equation_language_star_continuous
+    {A: Type}
+    (t1 t2: term A)
+  :
+    term_matches t1 = term_matches t2 ->
+    kleene_satisfies_class (@kleene_star_continuous) t1 t2
+  .
+  Proof.
+    unfold kleene_satisfies_class, kleene_satisfies; intuition.
+    apply kleene_mutual_containment with (K := K).
+    - apply kleene_star_continuous_interp_lower'; intuition.
+      apply kleene_star_continuous_interp_upper.
+      now rewrite <- H.
+    - apply kleene_star_continuous_interp_lower'; intuition.
+      apply kleene_star_continuous_interp_upper.
+      now rewrite H.
+  Qed.
+End StarContinuousEmbedding.
