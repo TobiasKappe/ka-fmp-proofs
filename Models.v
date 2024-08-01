@@ -1756,4 +1756,60 @@ Section FiniteEmbedding.
           -- eapply substring_app'; eauto.
           -- now constructor.
   Qed.
+
+  Fixpoint position_max (n: nat) : position (S n) :=
+    match n with
+    | 0%nat => PHere
+    | S n => PThere (position_max n)
+    end
+  .
+
+  Lemma substring_whole
+    {A: Type}
+    (w: list A)
+  :
+    substring w PHere (position_max (length w)) = inl w
+  .
+  Proof.
+    induction w; simpl;
+    autorewrite with substring.
+    - reflexivity.
+    - now rewrite IHw.
+  Qed.
+
+  Lemma kleene_finite_equiv
+    {A: Type}
+    `{Finite A}
+    (w: list A)
+    (t: term A)
+  :
+    term_matches t w <->
+    kleene_interp (kleene_finite_words w)
+                  (embed_word w) t
+                  PHere (position_max (length w)) = true
+  .
+  Proof.
+    intuition.
+    - eapply kleene_finite_embed with (w := w) (x := w); auto.
+      apply substring_whole.
+    - apply kleene_finite_recover in H0.
+      destruct H0 as [x [? ?]].
+      rewrite substring_whole in H0.
+      inversion H0; now subst.
+  Qed.
+
+  Lemma kleene_preserve_equation_finite_relational_shift_word
+    {A: Type}
+    `{Finite A}
+    (t1 t2: term A)
+    (w: list A)
+  :
+    kleene_satisfies_class (@kleene_finite_relational) t1 t2 ->
+    term_matches t1 w <-> term_matches t2 w
+  .
+  Proof.
+    intros; repeat rewrite kleene_finite_equiv.
+    apply Bool.eq_iff_eq_true.
+    now rewrite H0.
+  Qed.
 End FiniteEmbedding.
