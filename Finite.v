@@ -955,3 +955,57 @@ Section FiniteFixpoint.
       + apply H2.
   Qed.
 End FiniteFixpoint.
+
+Section FinitePositions.
+  Definition position_dec
+    (n: nat)
+    (p0 p1: position n)
+  :
+    {p0 = p1} + {p0 <> p1}
+  .
+  Proof.
+    dependent induction n;
+    dependent destruction p0.
+    - dependent destruction p1.
+      + now left.
+      + now right.
+    - dependent destruction p1.
+      + now right.
+      + destruct (IHn p0 p1).
+        * left; congruence.
+        * right; contradict n0; inversion n0.
+          now apply EqDec.inj_right_pair in H0.
+  Qed.
+
+  Equations position_enum (n: nat): list (position n) := {
+    position_enum 0 := nil;
+    position_enum (S n) :=
+      PHere :: map PThere (position_enum n);
+  }.
+
+  Program Global Instance position_finite
+    (n: nat)
+  :
+    Finite (position n)
+  := {
+    finite_dec := position_dec n;
+    finite_enum := position_enum n;
+  }.
+  Next Obligation.
+    induction n;
+    dependent destruction x;
+    autorewrite with position_enum.
+    - now left.
+    - right; apply in_map_iff.
+      exists x; intuition.
+  Qed.
+  Next Obligation.
+    induction n; autorewrite with position_enum; constructor.
+    - intro; apply in_map_iff in H.
+      destruct H as [p [? ?]].
+      discriminate.
+    - apply NoDup_map; auto.
+      intros; inversion H.
+      now apply EqDec.inj_right_pair in H1.
+  Qed.
+End FinitePositions.
