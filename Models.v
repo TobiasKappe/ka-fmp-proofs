@@ -95,6 +95,10 @@ Section StructureDefinitions.
     kleene_multiply_zero_right:
       forall (x: X),
         kleene_multiply x kleene_zero = kleene_zero;
+    kleene_multiply_unit_right :=
+      monoid_unit_right kleene_monoid;
+    kleene_multiply_unit_left :=
+      monoid_unit_left kleene_monoid;
     kleene_distribute_left:
       forall (x1 x2 x3: X),
         kleene_multiply x1 (kleene_plus x2 x3) =
@@ -558,10 +562,8 @@ Section StructurePowerset.
     - now rewrite kleene_plus_assoc.
     - unfold kleene_multiply.
       now rewrite monoid_compose_assoc.
-    - unfold kleene_multiply, kleene_unit.
-      now rewrite monoid_unit_left.
-    - unfold kleene_multiply, kleene_unit.
-      now rewrite monoid_unit_right.
+    - now rewrite kleene_distribute_left.
+    - now rewrite kleene_distribute_right.
     - rewrite kleene_plus_commute.
       now rewrite kleene_star_unroll.
     - now apply kleene_star_fixpoint.
@@ -2878,7 +2880,17 @@ Section StarContinuousEmbedding.
     kleene_plus K lhs x = x
   .
   Proof.
-  Admitted.
+    simpl; intros.
+    rewrite <- kleene_multiply_unit_left
+      with (k := K) (x := kleene_interp K h t).
+    rewrite <- kleene_multiply_unit_right
+      with (k := K) (x := monoid_compose _ _ _).
+    apply kleene_star_continuous_interp_lower; intuition.
+    unfold kleene_multiply.
+    rewrite kleene_multiply_unit_right.
+    rewrite kleene_multiply_unit_left.
+    now apply H0.
+  Qed.
 
   Lemma kleene_multiply_monotone
     {X: Type}
