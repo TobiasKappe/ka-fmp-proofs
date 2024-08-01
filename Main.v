@@ -1,9 +1,12 @@
 Require Import Coq.Lists.List.
+Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Coq.Logic.PropExtensionality.
 
 Require Import KA.Finite.
-Require Import KA.Terms.
-Require Import KA.Structure.
+Require Import KA.Models.
 Require Import KA.Scope.
+Require Import KA.Structure.
+Require Import KA.Terms.
 Local Open Scope ka_scope.
 
 Section Main.
@@ -75,5 +78,12 @@ Section Main.
     t1 == t2
   .
   Proof.
-  Admitted.
+    intros.
+    apply finite_model_property.
+    unfold term_interp_finite_equiv; intros.
+    apply kleene_preserve_equation_language_star_continuous.
+    - extensionality w; apply propositional_extensionality.
+      apply H0.
+    - apply kleene_finite_star_continuous.
+  Qed.
 End Main.
