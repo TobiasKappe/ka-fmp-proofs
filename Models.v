@@ -783,6 +783,40 @@ Section StructureNormalForm.
       + now apply initial_cover.
   Qed.
 
+  Lemma automaton_kleene_algebra_interp_lower_letter
+    (a: A)
+    (t: term)
+  :
+    $ a <=
+    sum (map
+      (fun m => automaton_relation_solution (automaton_antimirov t) m finite_eqb)
+      (filter (automaton_kleene_algebra_embed (automaton_antimirov t) a) finite_enum)
+    )
+  .
+  Proof.
+    eapply term_lequiv_trans; swap 1 2.
+    - apply sum_lequiv_member.
+      apply in_map_iff.
+      eexists; intuition.
+      apply filter_In; intuition.
+      + apply finite_cover.
+      + now apply finite_eqb_eq.
+    - unfold automaton_relation_solution.
+      eapply term_lequiv_trans; swap 1 2.
+      + eapply automaton_solution_move with (a := a).
+        * apply automaton_solution_invariant.
+          apply compute_automaton_solution_least_solution.
+        * now apply finite_eqb_eq.
+      + rewrite matrix_product_bool_unit_left.
+        rewrite <- ETimesUnitRight with (t := $a) at 1.
+        apply times_mor_mono.
+        * apply term_lequiv_refl.
+        * eapply automaton_solution_halt.
+          -- apply automaton_solution_invariant.
+             apply compute_automaton_solution_least_solution.
+          -- now apply finite_eqb_eq.
+  Qed.
+
   Lemma automaton_kleene_algebra_interp_lower
     (t t': term)
   :
@@ -813,27 +847,7 @@ Section StructureNormalForm.
           apply compute_automaton_solution_least_solution.
         * now apply finite_eqb_eq.
     - autorewrite with kleene_interp.
-      eapply term_lequiv_trans; swap 1 2.
-      + apply sum_lequiv_member.
-        apply in_map_iff.
-        eexists; intuition.
-        apply filter_In; intuition.
-        * apply finite_cover.
-        * now apply finite_eqb_eq.
-      + unfold automaton_relation_solution.
-        eapply term_lequiv_trans; swap 1 2.
-        * eapply automaton_solution_move with (a := a).
-          -- apply automaton_solution_invariant.
-             apply compute_automaton_solution_least_solution.
-          -- now apply finite_eqb_eq.
-        * rewrite matrix_product_bool_unit_left.
-          rewrite <- ETimesUnitRight with (t := $a) at 1.
-          apply times_mor_mono.
-          -- apply term_lequiv_refl.
-          -- eapply automaton_solution_halt.
-             ++ apply automaton_solution_invariant.
-                apply compute_automaton_solution_least_solution.
-             ++ now apply finite_eqb_eq.
+      apply automaton_kleene_algebra_interp_lower_letter.
     - apply term_lequiv_split.
       + eapply term_lequiv_trans; eauto.
         apply sum_lequiv_containment;
