@@ -14,29 +14,10 @@ Section Main.
 
   Notation term := (term A).
 
-  Definition term_interp_finite_equiv
-    (t1 t2: term)
-  :=
-    forall (X: Type) (k: kleene_algebra X) (f: A -> X),
-      Finite X ->
-      kleene_interp k f t1 = kleene_interp k f t2
-  .
-
-  Lemma term_finite_equiv_symmetric
-    (t1 t2: term)
-  :
-    term_interp_finite_equiv t1 t2 ->
-    term_interp_finite_equiv t2 t1
-  .
-  Proof.
-    unfold term_interp_finite_equiv.
-    intros; now rewrite H0.
-  Qed.
-
   Lemma finite_model_property_bound
     (t1 t2: term)
   :
-    term_interp_finite_equiv t1 t2 ->
+    kleene_satisfies_class (@kleene_finite) t1 t2 ->
     t1 <= t2
   .
   Proof.
@@ -48,41 +29,49 @@ Section Main.
       destruct H1 as [t'' [? ?]]; subst.
       apply filter_In in H2; destruct H2 as [_ ?].
       apply automaton_kleene_algebra_interp_upper.
-      rewrite <- H0; intuition.
+      rewrite <- H0. intuition.
+      constructor; intuition.
   Qed.
 
   Theorem finite_model_property
     (t1 t2: term)
   :
-    term_interp_finite_equiv t1 t2 ->
+    kleene_satisfies_class (@kleene_finite) t1 t2 ->
     t1 == t2
   .
   Proof.
     intros.
     apply term_lequiv_squeeze.
     - now apply finite_model_property_bound.
-    - now apply finite_model_property_bound, term_finite_equiv_symmetric.
+    - now apply finite_model_property_bound,
+                kleene_satisfies_class_symmetric.
   Qed.
-
-  Definition term_language_equiv
-    (t1 t2: term)
-  :=
-    forall w, term_matches t1 w <-> term_matches t2 w
-  .
 
   Theorem completeness
     (t1 t2: term)
   :
-    term_language_equiv t1 t2 ->
+    term_matches t1 = term_matches t2 ->
     t1 == t2
   .
   Proof.
     intros.
     apply finite_model_property.
-    unfold term_interp_finite_equiv; intros.
-    apply kleene_preserve_equation_language_star_continuous.
-    - extensionality w; apply propositional_extensionality.
-      apply H0.
-    - apply kleene_finite_star_continuous.
+    unfold kleene_satisfies_class; intros.
+    apply kleene_preserve_equation_language_star_continuous; auto.
+    destruct H1; apply kleene_finite_star_continuous.
+  Qed.
+
+  Theorem relational_model_property
+    (t1 t2: term)
+  :
+    kleene_satisfies_class (@kleene_relational) t1 t2 ->
+    t1 == t2
+  .
+  Proof.
+    intros.
+    apply completeness.
+    extensionality w; apply propositional_extensionality.
+    apply kleene_preserve_equation_finite_relational_language.
+    now apply kleene_preserve_equation_relational_finite_relational.
   Qed.
 End Main.

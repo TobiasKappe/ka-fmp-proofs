@@ -2099,6 +2099,18 @@ Section EquationalTheories.
       kleene_satisfies K t1 t2
   .
 
+  Lemma kleene_satisfies_class_symmetric
+    {A: Type}
+    (Ks: forall {X: Type}, kleene_algebra X -> Prop)
+    (t1 t2: term A)
+  :
+    kleene_satisfies_class (@Ks) t1 t2 ->
+    kleene_satisfies_class (@Ks) t2 t1
+  .
+  Proof.
+    firstorder.
+  Qed.
+
   Variant kleene_relational:
     forall {X: Type}, kleene_algebra X -> Prop :=
   | KleeneRelational:
@@ -2745,7 +2757,7 @@ Section FiniteEmbedding.
       inversion H0; now subst.
   Qed.
 
-  Lemma kleene_preserve_equation_finite_relational_shift_word
+  Lemma kleene_preserve_equation_finite_relational_language
     {A: Type}
     `{Finite A}
     (t1 t2: term A)
