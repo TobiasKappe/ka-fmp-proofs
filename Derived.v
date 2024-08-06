@@ -1,5 +1,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Program.Equality.
+Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Coq.Logic.PropExtensionality.
 
 Require Import KA.Terms.
 Require Import KA.Finite.
@@ -16,7 +18,8 @@ Section DerivedBase.
     ($ a) * * == ($ a)*
   .
   Proof.
-    apply completeness; auto; split; intros.
+    apply completeness; auto; extensionality w.
+    apply propositional_extensionality; intuition.
     - apply term_matches_star_split in H0.
       apply term_matches_star_split.
       destruct H0 as [l [? ?]]; subst.
@@ -43,7 +46,8 @@ Section DerivedBase.
     ($ a ;; $ b)* ;; $a == $a ;; ($ b ;; $ a)*
   .
   Proof.
-    apply completeness; auto; split; intros.
+    apply completeness; auto; extensionality w.
+    apply propositional_extensionality; intuition.
     - dependent destruction H0.
       apply term_matches_star_repeat in H0_.
       destruct H0_ as [n ?].
@@ -148,7 +152,8 @@ Section DerivedBase.
     ($ a + $ b)* == ($ a)* ;; ($b ;; ($ a)*) *
   .
   Proof.
-    apply completeness; auto; split; intros.
+    apply completeness; auto; extensionality w.
+    apply propositional_extensionality; intuition.
     - apply term_matches_star_repeat in H0.
       destruct H0 as [n ?].
       revert w H0; induction n;
