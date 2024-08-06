@@ -620,7 +620,7 @@ Section AntimirovDerive.
         now inversion H0.
   Qed.
 
-  Global Program Instance: forall t, Finite (derivative t).
+  Global Program Instance derivative_finite: forall t, Finite (derivative t).
   Next Obligation.
     apply derive_list.
   Defined.
@@ -633,7 +633,7 @@ Section AntimirovDerive.
       now apply derive_eqb_correct.
   Qed.
   Next Obligation.
-    unfold Finite_instance_0_obligation_1.
+    unfold derivative_finite_obligation_1.
     dependent induction x;
     autorewrite with derive_list.
     - now left.
@@ -652,7 +652,7 @@ Section AntimirovDerive.
     - now left.
   Qed.
   Next Obligation.
-    unfold Finite_instance_0_obligation_1.
+    unfold derivative_finite_obligation_1.
     dependent induction t;
     autorewrite with derive_list.
     - constructor.
