@@ -794,6 +794,50 @@ Section AntimirovDerive.
         intuition now constructor.
     - dependent destruction H0.
   Qed.
+
+  Lemma derive_step
+    (t : term)
+    (d : derivative t)
+    (a : A)
+    (t' t'' : derivative t)
+  :
+    derive a t' t'' ->
+    $ a;; derivative_write t'' <= derivative_write t'
+  .
+  Proof.
+    intros.
+    dependent induction t;
+    dependent destruction t';
+    dependent destruction t'';
+    dependent destruction H0;
+    autorewrite with derivative_write.
+    - rewrite ETimesUnitRight.
+      apply term_lequiv_refl.
+    - now apply IHt1.
+    - now apply IHt2.
+    - rewrite ETimesAssoc.
+      apply times_mor_mono; intuition.
+    - eapply term_lequiv_trans; intuition.
+      rewrite <- ETimesUnitLeft with (t := derivative_write i).
+      apply times_mor_mono.
+      + now apply nullable_one.
+      + now apply initial_cover.
+    - now apply IHt2.
+    - rewrite ETimesAssoc.
+      apply times_mor_mono; intuition.
+    - eapply term_lequiv_trans with (t2 := t*).
+      + rewrite ETimesAssoc.
+        rewrite EStarLeft at 2.
+        rewrite EStarLeft at 3.
+        apply term_lequiv_split_left.
+        apply times_mor_mono; intuition.
+        eapply term_lequiv_trans; intuition.
+        now apply initial_cover.
+      + rewrite <- ETimesUnitLeft with (t := t*).
+        apply times_mor_mono.
+        * now apply nullable_one.
+        * now rewrite <- ETimesUnitLeft with (t := t*) at 1.
+  Qed.
 End AntimirovDerive.
 
 Section AntimirovAutomaton.
@@ -802,6 +846,9 @@ Section AntimirovAutomaton.
   Notation term := (term A).
   Notation derivative := (derivative A).
   Notation automaton := (automaton A).
+  Notation nullable := (nullable A).
+  Notation initial := (initial A).
+  Notation vector := (vector A).
 
   Definition automaton_antimirov (t: term) : automaton (derivative t) := {|
     aut_transitions a d1 d2 := derive_b a d1 d2;
@@ -834,7 +881,7 @@ Section AntimirovAutomaton.
   :
     term_matches t w ->
     exists t',
-        initial A t' /\
+        initial t' /\
         automaton_accepts (automaton_antimirov t) t' w
   .
   Proof.
@@ -849,16 +896,6 @@ Section AntimirovAutomaton.
     exists t'; intuition.
     now apply automaton_antimirov_accepts_local.
   Qed.
-End AntimirovAutomaton.
-
-Section AntimirovSolution.
-  Context {A: Type}.
-  Context `{Finite A}.
-  Notation term := (term A).
-  Notation derivative := (derivative A).
-  Notation nullable := (nullable A).
-  Notation initial := (initial A).
-  Notation vector := (vector A).
 
   Definition antimirov_solution (t: term): vector (derivative t) :=
     compute_automaton_solution (automaton_antimirov t)
@@ -875,46 +912,9 @@ Section AntimirovSolution.
     split; intros.
     - simpl in H0.
       apply derive_dec in H0.
-      dependent induction t;
-      dependent destruction q1;
-      dependent destruction q2;
-      dependent destruction H0;
-      autorewrite with derivative_write.
-      + rewrite ETimesUnitRight.
-        apply term_lequiv_refl.
-      + now apply IHt1.
-      + now apply IHt2.
-      + rewrite ETimesAssoc.
-        apply times_mor_mono; auto.
-        * now apply IHt1.
-        * apply term_lequiv_refl.
-      + eapply term_lequiv_trans.
-        * now apply IHt2 with (q1 := i).
-        * rewrite <- ETimesUnitLeft with (t := derivative_write i).
-          apply times_mor_mono.
-          -- now apply nullable_one.
-          -- now apply initial_cover.
-      + now apply IHt2.
-      + rewrite ETimesAssoc.
-        apply times_mor_mono.
-        * now apply IHt.
-        * apply term_lequiv_refl.
-      + eapply term_lequiv_trans with (t2 := t*).
-        * rewrite ETimesAssoc.
-          rewrite EStarLeft at 2.
-          rewrite EStarLeft at 3.
-          apply term_lequiv_split_left.
-          apply times_mor_mono.
-          -- eapply term_lequiv_trans.
-             ++ now apply IHt with (q1 := i).
-             ++ now apply initial_cover.
-          -- apply term_lequiv_refl.
-        * rewrite <- ETimesUnitLeft with (t := t*).
-          apply times_mor_mono.
-          -- now apply nullable_one.
-          -- now rewrite <- ETimesUnitLeft with (t := t*) at 1.
+      now apply derive_step.
     - simpl in H0.
       apply nullable_one.
       now apply nullable_dec.
   Qed.
-End AntimirovSolution.
+End AntimirovAutomaton.
