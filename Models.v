@@ -2822,7 +2822,7 @@ Section StarContinuousEmbedding.
       now rewrite IHw1.
   Qed.
 
-  Lemma kleene_star_continuous_interp_lower
+  Lemma kleene_star_continuous_interp_lower_general
     {X A: Type}
     (K: kleene_algebra X)
     (t: term A)
@@ -2890,7 +2890,7 @@ Section StarContinuousEmbedding.
         * now rewrite <- kleene_interp_word_app.
   Qed.
 
-  Lemma kleene_star_continuous_interp_lower'
+  Lemma kleene_star_continuous_interp_lower
     {X A: Type}
     (K: kleene_algebra X)
     (t: term A)
@@ -2911,7 +2911,7 @@ Section StarContinuousEmbedding.
       with (k := K) (x := kleene_interp K h t).
     rewrite <- kleene_multiply_unit_right
       with (k := K) (x := monoid_compose _ _ _).
-    apply kleene_star_continuous_interp_lower; intuition.
+    apply kleene_star_continuous_interp_lower_general; intuition.
     unfold kleene_multiply.
     rewrite kleene_multiply_unit_right.
     rewrite kleene_multiply_unit_left.
@@ -2997,10 +2997,10 @@ Section StarContinuousEmbedding.
   Proof.
     unfold kleene_satisfies_class, kleene_satisfies; intuition.
     apply kleene_mutual_containment with (K := K).
-    - apply kleene_star_continuous_interp_lower'; intuition.
+    - apply kleene_star_continuous_interp_lower; intuition.
       apply kleene_star_continuous_interp_upper.
       now rewrite <- H.
-    - apply kleene_star_continuous_interp_lower'; intuition.
+    - apply kleene_star_continuous_interp_lower; intuition.
       apply kleene_star_continuous_interp_upper.
       now rewrite H.
   Qed.
