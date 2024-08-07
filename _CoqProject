@@ -7,9 +7,10 @@ Finite.v
 Terms.v
 Vectors.v
 Solve.v
+ModelTheory.v
 Antimirov.v
 Transformation.v
 Automata.v
-Models.v
+CanonicalModel.v
 Main.v
 Derived.v
