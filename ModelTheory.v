@@ -1340,7 +1340,7 @@ Section EquationalTheories.
     unfold kleene_satisfies_class, kleene_satisfies; firstorder.
   Qed.
 
-  Lemma kleene_preserve_equation_star_continuous_relational
+  Lemma preserve_star_continuous_to_relational
     {A X: Type}
     (K: kleene_algebra X)
     (t1 t2: term A)
@@ -1353,7 +1353,7 @@ Section EquationalTheories.
     destruct H; apply kleene_relational_star_continuous.
   Qed.
 
-  Lemma kleene_preserve_equation_star_continuous_finite
+  Lemma preserve_star_continuous_to_finite
     {A X: Type}
     (K: kleene_algebra X)
     (t1 t2: term A)
@@ -1366,7 +1366,7 @@ Section EquationalTheories.
     destruct H; apply kleene_finite_star_continuous.
   Qed.
 
-  Lemma kleene_preserve_equation_finite_finite_relational
+  Lemma preserve_finite_to_finite_relational
     {A X: Type}
     (K: kleene_algebra X)
     (t1 t2: term A)
@@ -1531,7 +1531,7 @@ Section RelationalVsFiniteRelational.
     - rewrite <- kleene_finite_relational_to_relational_star; congruence.
   Qed.
 
-  Lemma kleene_preserve_equation_relational_finite_relational
+  Lemma preserve_relational_to_finite_relational
     {A: Type}
     (t1 t2: term A)
   :
@@ -1954,7 +1954,7 @@ Section FiniteEmbedding.
       inversion H0; now subst.
   Qed.
 
-  Lemma kleene_preserve_equation_finite_relational_language
+  Lemma preserve_finite_relational_to_language
     {A: Type}
     `{Finite A}
     (t1 t2: term A)
@@ -2170,7 +2170,7 @@ Section StarContinuousEmbedding.
         * now apply IHterm_matches2.
   Qed.
 
-  Lemma kleene_preserve_equation_language_star_continuous
+  Lemma preserve_language_to_star_continuous
     {A: Type}
     (t1 t2: term A)
   :

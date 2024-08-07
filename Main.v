@@ -58,7 +58,7 @@ Section Main.
     intros.
     apply finite_model_property.
     unfold kleene_satisfies_class; intros.
-    apply kleene_preserve_equation_language_star_continuous; auto.
+    apply preserve_language_to_star_continuous; auto.
     destruct H1; apply kleene_finite_star_continuous.
   Qed.
 
@@ -72,7 +72,7 @@ Section Main.
     intros.
     apply completeness.
     extensionality w; apply propositional_extensionality.
-    apply kleene_preserve_equation_finite_relational_language.
-    now apply kleene_preserve_equation_relational_finite_relational.
+    apply preserve_finite_relational_to_language.
+    now apply preserve_relational_to_finite_relational.
   Qed.
 End Main.
