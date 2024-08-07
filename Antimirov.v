@@ -10,6 +10,7 @@ Require Import KA.Terms.
 Require Import KA.Vectors.
 Require Import KA.Automata.
 Require Import KA.Scope.
+Require Import KA.Solve.
 Local Open Scope ka_scope.
 
 Section AntimirovTypes.

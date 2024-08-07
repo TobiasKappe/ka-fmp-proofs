@@ -14,6 +14,8 @@ Require Import KA.Scope.
 Require Import KA.Terms.
 Require Import KA.Vectors.
 Require Import KA.Utilities.
+Require Import KA.Transformation.
+Require Import KA.Solve.
 
 Local Open Scope ka_scope.
 Local Open Scope program_scope.
@@ -801,20 +803,7 @@ Section StructureNormalForm.
       apply filter_In; intuition.
       + apply finite_cover.
       + now apply finite_eqb_eq.
-    - unfold automaton_relation_solution.
-      eapply term_lequiv_trans; swap 1 2.
-      + eapply automaton_solution_move with (a := a).
-        * apply automaton_solution_invariant.
-          apply compute_automaton_solution_least_solution.
-        * now apply finite_eqb_eq.
-      + rewrite matrix_product_bool_unit_left.
-        rewrite <- ETimesUnitRight with (t := $a) at 1.
-        apply times_mor_mono.
-        * apply term_lequiv_refl.
-        * eapply automaton_solution_halt.
-          -- apply automaton_solution_invariant.
-             apply compute_automaton_solution_least_solution.
-          -- now apply finite_eqb_eq.
+    - apply automaton_relation_solution_letter.
   Qed.
 
   Lemma automaton_kleene_algebra_interp_lower

@@ -113,7 +113,6 @@ Section TermEquivalence.
   Qed.
 
   Definition term_lequiv (t1 t2: term) := t1 <= t2.
-  (* Hint Unfold term_lequiv : core. *)
 
   Lemma term_lequiv_refl (t: term):
     t <= t
