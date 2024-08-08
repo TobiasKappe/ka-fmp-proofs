@@ -906,13 +906,13 @@ Section FiniteFixpoint.
       rewrite map_length, seq_length.
       lia.
     - intuition.
-      apply map_app_lift in H1.
+      apply map_eq_app in H1.
       destruct H1 as [ln1 [lnt1 [? [? ?]]]]; subst.
-      apply map_app_lift in H4.
+      apply map_eq_app in H4.
       destruct H4 as [ln2 [lnt2 [? [? ?]]]]; subst.
-      apply map_app_lift in H5.
+      apply map_eq_app in H5.
       destruct H5 as [ln3 [lnt3 [? [? ?]]]]; subst.
-      apply map_app_lift in H6.
+      apply map_eq_app in H6.
       destruct H6 as [ln4 [ln5 [? [? ?]]]]; subst.
       destruct ln2; simpl in H4; [ discriminate | inversion H4; clear H4 ].
       destruct ln4; simpl in H5; [ discriminate | inversion H5; clear H5 ].

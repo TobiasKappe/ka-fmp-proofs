@@ -17,27 +17,6 @@ Proof.
 Qed.
 
 Section ListAppend.
-  Lemma map_app_lift {X Y: Type} (f: X -> Y) (lx: list X) (ly1 ly2: list Y):
-    map f lx = ly1 ++ ly2 ->
-    exists (lx1 lx2: list X),
-      lx = lx1 ++ lx2 /\
-      map f lx1 = ly1 /\
-      map f lx2 = ly2
-  .
-  Proof.
-    intros; revert lx H; induction ly1; intros.
-    - rewrite app_nil_l in H.
-      exists nil, lx.
-      intuition.
-    - destruct lx; simpl in H.
-      + discriminate.
-      + inversion H; subst.
-        apply IHly1 in H2.
-        destruct H2 as [lx1 [lx2 [? [? ?]]]].
-        exists (x :: lx1), lx2; simpl.
-        intuition congruence.
-  Qed.
-
   Lemma app_match_left
     {X: Type}
     (l1 l2 l3 l4: list X)
