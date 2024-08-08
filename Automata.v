@@ -4,7 +4,6 @@ Require Import Coq.Program.Equality.
 
 Require Import KA.Booleans.
 Require Import KA.Finite.
-Require Import KA.Terms.
 Require Import KA.Vectors.
 
 Local Open Scope bool_scope.

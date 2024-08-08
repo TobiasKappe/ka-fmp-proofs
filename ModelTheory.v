@@ -8,7 +8,6 @@ Require Import Coq.micromega.Lia.
 
 Require Import KA.Booleans.
 Require Import KA.Finite.
-Require Import KA.Scope.
 Require Import KA.Terms.
 Require Import KA.Utilities.
 Require Import KA.Vectors.

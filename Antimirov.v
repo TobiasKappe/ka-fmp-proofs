@@ -5,10 +5,8 @@ Require Import Coq.Program.Equality.
 Require Import KA.Automata.
 Require Import KA.Booleans.
 Require Import KA.Finite.
-Require Import KA.Scope.
 Require Import KA.Solve.
 Require Import KA.Terms.
-Require Import KA.Utilities.
 Require Import KA.Utilities.
 Require Import KA.Vectors.
 
