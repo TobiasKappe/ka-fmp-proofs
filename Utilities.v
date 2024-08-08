@@ -1,6 +1,9 @@
 Require Import Coq.Program.Equality.
 Require Import Coq.Lists.List.
 Require Import Coq.micromega.Lia.
+Require Import Coq.Program.Basics.
+
+Local Open Scope program_scope.
 
 Ltac clean_exists :=
   repeat match goal with
@@ -8,6 +11,14 @@ Ltac clean_exists :=
            apply Eqdep.EqdepTheory.inj_pair2 in H
          end;
   subst.
+
+Ltac fold_compose :=
+  match goal with
+  | H: context [ fun x => ?y (?z x) ] |- _ =>
+    replace (fun x => y (z x)) with (y ∘ z) in H by reflexivity
+  | |- context [ fun x => ?y (?z x) ] =>
+    replace (fun x => y (z x)) with (y ∘ z) by reflexivity
+  end.
 
 Lemma function_instantiation {X Y: Type} (f g: X -> Y) (x: X):
   f = g -> f x = g x

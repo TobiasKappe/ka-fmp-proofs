@@ -465,13 +465,7 @@ Section FiniteSubset.
       rewrite position_subsets_eqb_correct in Heqb.
       extensionality x.
       rewrite <- list_lookup_index with (x := x).
-      replace (x1 (list_lookup (list_index x)))
-        with ((x1 ∘ list_lookup) (list_index x))
-        by reflexivity.
-      replace (x2 (list_lookup (list_index x)))
-        with ((x2 ∘ list_lookup) (list_index x))
-        by reflexivity.
-      now rewrite Heqb.
+      eapply function_instantiation in Heqb; eauto.
     - right.
       rewrite <- Bool.not_true_iff_false in Heqb.
       contradict Heqb.
@@ -487,19 +481,13 @@ Section FiniteSubset.
     - apply position_subsets_full.
   Qed.
   Next Obligation.
-    unfold finite_subsets.
-    apply NoDup_map.
-    - intros.
-      extensionality p.
+    unfold finite_subsets; simpl.
+    eapply NoDup_map_inv with (f := fun m => m ∘ list_lookup).
+    rewrite map_map; apply NoDup_map; intuition.
+    - extensionality p.
       rewrite <- list_index_lookup with (p := p).
-      replace (x (list_index (list_lookup p)))
-        with ((x ∘ list_index) (list_lookup p))
-        by reflexivity.
-      replace (y (list_index (list_lookup p)))
-        with ((y ∘ list_index) (list_lookup p))
-        by reflexivity.
-      apply function_instantiation.
-      apply H0.
+      repeat fold_compose.
+      eapply function_instantiation in H0; eauto.
     - apply position_subsets_nodup.
   Qed.
 End FiniteSubset.
