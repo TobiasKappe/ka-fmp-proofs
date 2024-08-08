@@ -2,6 +2,9 @@ Require Import Coq.Program.Equality.
 Require Import Coq.Lists.List.
 Require Import Coq.micromega.Lia.
 Require Import Coq.Program.Basics.
+Require Import Coq.Bool.Bool.
+
+Require Import KA.Booleans.
 
 Local Open Scope program_scope.
 
@@ -18,6 +21,30 @@ Ltac fold_compose :=
     replace (fun x => y (z x)) with (y ∘ z) in H by reflexivity
   | |- context [ fun x => ?y (?z x) ] =>
     replace (fun x => y (z x)) with (y ∘ z) by reflexivity
+  end.
+
+Ltac handle_lists :=
+  repeat rewrite ?in_map_iff, ?in_prod_iff, ?in_app_iff, ?filter_In;
+  repeat rewrite ?map_map, ?map_app in *;
+  try match goal with
+  | H: In _ (map _ _) |- _ =>
+    apply in_map_iff in H;
+    destruct H as [? [? ?]]
+  | H: In _ (list_prod _ _) |- _ =>
+    apply in_prod_iff in H;
+    destruct H as [? ?]
+  | H: In _ (_ ++ _) |- _ =>
+    apply in_app_iff in H
+  | H:  In _ (filter _ _) |- _ =>
+    apply filter_In in H
+  | H: map _ _ = _ ++ _ |- _ =>
+    apply map_eq_app in H;
+    destruct H as [? [? [? [? ?]]]]
+  | H: map _ _ = _ :: _ |- _ =>
+    apply map_eq_cons in H;
+    destruct H as [? [? [? [? ?]]]]
+  | H: map _ _ = nil |- _ =>
+    apply map_eq_nil in H
   end.
 
 Lemma function_instantiation {X Y: Type} (f g: X -> Y) (x: X):

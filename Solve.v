@@ -8,6 +8,7 @@ Require Import KA.Terms.
 Require Import KA.Vectors.
 Require Import KA.Scope.
 Require Import KA.Automata.
+Require Import KA.Utilities.
 Local Open Scope ka_scope.
 
 Section System.
@@ -648,12 +649,8 @@ Section AutomatonSolution.
         apply H0.
       + unfold term_lequiv; simpl.
         apply sum_lequiv_member.
-        apply in_map_iff.
-        exists a.
-        split; auto.
-        apply filter_In.
-        split; auto.
-        apply finite_cover.
+        handle_lists; eexists; intuition.
+        handle_lists; intuition.
     - enough (svec (automaton_to_system aut) q == 1).
       + rewrite <- ETimesUnitLeft with (t := scale).
         rewrite <- H2.
@@ -677,14 +674,7 @@ Section AutomatonSolution.
     - simpl.
       rewrite <- sum_distribute_right.
       apply sum_lequiv_all; intros.
-      rewrite map_map in H1.
-      apply in_map_iff in H1.
-      destruct H1 as [a [? ?]].
-      subst.
-      apply filter_In in H2.
-      destruct H2 as [_ ?].
-      apply H0.
-      apply H1.
+      repeat handle_lists; subst; intuition.
     - simpl.
       destruct (aut_accept aut q) eqn:?.
       + rewrite ETimesUnitLeft.
@@ -811,26 +801,18 @@ Section AutomatonSolution.
       apply term_lequiv_refl.
     - apply term_lequiv_split_right.
       apply sum_lequiv_all; intros.
-      apply in_map_iff in H2.
-      destruct H2 as [q' [? ?]]; subst.
+      handle_lists; subst.
       eapply term_lequiv_trans; swap 1 2.
       + eapply sum_lequiv_member.
-        apply in_map_iff.
-        exists q'.
-        split; auto.
+        handle_lists; exists x; intuition.
       + apply sum_lequiv_all; intros.
-        apply in_map_iff in H2.
-        destruct H2 as [a [? ?]]; subst.
-        destruct (aut_transitions aut a q q') eqn:?.
+        handle_lists; subst.
+        destruct (aut_transitions aut x0 q x) eqn:?.
         * eapply term_lequiv_trans; swap 1 2.
           -- apply sum_lequiv_member.
-             apply in_map_iff.
-             exists a.
-             split; auto.
+             handle_lists; eexists; intuition.
           -- rewrite Heqb.
-             apply times_mor_mono.
-             ++ apply term_lequiv_refl.
-             ++ apply H1.
+             apply times_mor_mono; intuition.
         * apply term_lequiv_zero.
   Qed.
 
@@ -854,29 +836,21 @@ Section AutomatonSolution.
         * now apply H1.
         * apply term_lequiv_zero.
       + apply sum_lequiv_all; intros.
-        apply in_map_iff in H2.
-        destruct H2 as [q' [? ?]]; subst.
+        handle_lists; subst.
         apply sum_lequiv_all; intros.
-        apply in_map_iff in H2.
-        destruct H2 as [a [? ?]]; subst.
-        destruct (aut_transitions aut a q q') eqn:?.
-        * now apply H1.
-        * apply term_lequiv_zero.
+        handle_lists; subst.
+        destruct (aut_transitions aut x0 q x) eqn:?; intuition.
+        apply term_lequiv_zero.
     - split; intros.
       + apply term_lequiv_trans with (t2 := automaton_perturb aut scale sol q1).
         * unfold automaton_perturb.
           apply term_lequiv_split_right.
           eapply term_lequiv_trans; swap 1 2.
           -- apply sum_lequiv_member.
-             apply in_map_iff.
-             eexists; split; auto.
-             apply finite_cover.
+             handle_lists; eexists; intuition.
           -- apply sum_lequiv_member.
-             apply in_map_iff.
-             exists a.
-             rewrite H2.
-             split; auto.
-             apply finite_cover.
+             handle_lists; eexists; intuition.
+             now rewrite H2.
         * apply H1.
       + eapply term_lequiv_trans with (t2 := automaton_perturb aut scale sol q).
         * unfold automaton_perturb.

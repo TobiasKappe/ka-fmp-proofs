@@ -7,6 +7,7 @@ Require Import KA.Terms.
 Require Import KA.Finite.
 Require Import KA.Main.
 Require Import KA.Scope.
+Require Import KA.Utilities.
 Local Open Scope ka_scope.
 
 Section DerivedBase.
@@ -35,8 +36,7 @@ Section DerivedBase.
           exists (l'' ++ l').
           rewrite concat_app, <- H0.
           intuition.
-          apply in_app_iff in H1.
-          destruct H1; intuition.
+          handle_lists; intuition.
     - replace w with (w ++ nil) by (now rewrite app_nil_r).
       apply MatchStarStep; auto.
       apply MatchStarBase.

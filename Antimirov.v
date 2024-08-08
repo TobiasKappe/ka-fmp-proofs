@@ -11,6 +11,7 @@ Require Import KA.Vectors.
 Require Import KA.Automata.
 Require Import KA.Scope.
 Require Import KA.Solve.
+Require Import KA.Utilities.
 Local Open Scope ka_scope.
 
 Section AntimirovTypes.
@@ -200,52 +201,43 @@ Section AntimirovInitial.
     autorewrite with initial_b;
     try (split; intros; [now left | constructor]);
     try (split; intros; [inversion H | now destruct H]).
-    - rewrite in_app_iff; repeat rewrite in_map_iff.
-      split; intros.
-      + dependent destruction H.
-        left; eexists.
-        intuition.
+    - intuition; handle_lists.
+      + dependent destruction H1.
+        left; handle_lists.
+        eexists; intuition.
       + constructor.
-        destruct H as [[d' [? ?]] | [d' [? ?]]].
-        * apply IHd.
-          inversion H.
+        intuition; handle_lists.
+        * apply H0.
+          inversion H1.
           now clean_exists.
         * discriminate.
-    - rewrite in_app_iff; repeat rewrite in_map_iff.
-      split; intros.
-      + dependent destruction H.
-        right; eexists.
-        intuition.
+    - intuition; handle_lists.
+      + dependent destruction H1.
+        right; handle_lists.
+        eexists; intuition.
       + constructor.
-        destruct H as [[d' [? ?]] | [d' [? ?]]].
+        intuition; handle_lists.
         * discriminate.
-        * apply IHd.
-          inversion H.
+        * apply H0.
+          inversion H1.
           now clean_exists.
-    - rewrite in_map_iff.
-      split; intros.
-      + dependent destruction H.
-        eexists.
-        intuition.
+    - intuition; handle_lists.
+      + dependent destruction H1.
+        eexists; intuition.
       + constructor.
-        apply IHd.
-        destruct H as [d' [? ?]].
-        inversion H.
+        apply H0.
+        inversion H1.
         now clean_exists.
-    - rewrite in_map_iff.
-      split; intros.
-      + dependent destruction H.
-      + now destruct H as [d' [? ?]].
-    - simpl.
-      rewrite in_map_iff.
-      split; intros.
-      + dependent destruction H.
-        right.
-        eexists.
-        intuition.
-      + destruct H as [? | [d' [? ?]]];
-        try discriminate.
-        inversion H.
+    - intuition.
+      + dependent destruction H1.
+      + handle_lists; discriminate.
+    - simpl; intuition.
+      + dependent destruction H1.
+        right; handle_lists.
+        eexists; intuition.
+      + discriminate.
+      + handle_lists.
+        inversion H1.
         constructor.
         clean_exists.
         intuition.
@@ -262,9 +254,8 @@ Section AntimirovInitial.
     - vm_compute.
       now rewrite EPlusUnit.
     - autorewrite with initial_l.
-      rewrite map_app.
+      handle_lists.
       rewrite sum_split.
-      repeat rewrite map_map.
       rewrite map_ext
         with (f := (fun x => derivative_write (TPlusLeft t2 x)))
              (g := derivative_write)
@@ -275,7 +266,7 @@ Section AntimirovInitial.
         by easy.
       now rewrite <- IHt1, <- IHt2.
     - autorewrite with initial_l.
-      rewrite map_map.
+      handle_lists.
       rewrite map_ext with (g := (fun x => derivative_write x ;; t2)) by easy.
       rewrite <- map_map with (g := fun x => x ;; t2).
       rewrite sum_distribute_right.
@@ -283,7 +274,7 @@ Section AntimirovInitial.
     - autorewrite with initial_l.
       simpl; autorewrite with sum.
       autorewrite with derivative_write.
-      rewrite map_map.
+      handle_lists.
       rewrite map_ext with (g := (fun x => derivative_write x ;; t*)) by easy.
       rewrite <- map_map with (g := fun x => x ;; t*).
       rewrite sum_distribute_right.
@@ -353,20 +344,13 @@ Section AntimirovNullable.
       apply andb_true_intro; split.
       + now apply IHt1.
       + apply disj_true.
-        apply in_map_iff.
-        exists d2.
-        split.
-        * now apply IHt2.
-        * now apply initial_list.
+        handle_lists; eexists; intuition.
+        now apply initial_list.
     - apply andb_prop in H; destruct H.
       apply disj_true in H0.
-      apply in_map_iff in H0.
-      destruct H0 as [d' [? ?]].
-      eapply NullableTimesPre.
-      + now apply IHt1.
-      + apply IHt2.
-        apply H0.
-      + now apply initial_list.
+      handle_lists.
+      eapply NullableTimesPre; intuition.
+      now apply initial_list.
   Qed.
 
   Lemma nullable_one (t: term) (d: derivative t):
@@ -416,10 +400,9 @@ Section AntimirovNullable.
     symmetry; apply initial_reconstruct.
     apply term_matches_sum in H0.
     destruct H0 as [t [? ?]].
-    apply in_map_iff in H0.
-    destruct H0 as [t'' [? ?]]; subst.
+    handle_lists; subst.
     apply initial_list in H2.
-    apply NullableTimesPre with (d2 := t''); intuition.
+    eapply NullableTimesPre; intuition.
   Qed.
 End AntimirovNullable.
 
@@ -519,30 +502,22 @@ Section AntimirovDerive.
         apply andb_true_intro; split.
         * now apply nullable_dec.
         * apply disj_true.
-          apply in_map_iff.
-          eexists.
-          intuition.
+          handle_lists; eexists; intuition.
           now apply initial_list.
       + apply andb_prop in H0; destruct H0.
         apply disj_true in H1.
-        apply in_map_iff in H1.
-        destruct H1 as [i [? ?]].
-        eapply DeriveTimesJump.
+        handle_lists.
+        eapply DeriveTimesJump; intuition.
         * now apply nullable_dec.
         * apply initial_list, H2.
-        * now apply IHt2.
     - split; intros.
       + apply Bool.orb_true_intro.
         dependent destruction H0.
-        * left.
-          now apply IHt.
-        * right.
-          apply andb_true_intro; split.
+        * left; now apply IHt.
+        * right; apply andb_true_intro; split.
           -- now apply nullable_dec.
           -- apply disj_true.
-             apply in_map_iff.
-             exists i.
-             intuition.
+             handle_lists; eexists; intuition.
              now apply initial_list.
       + apply Bool.orb_true_elim in H0.
         destruct H0.
@@ -550,12 +525,10 @@ Section AntimirovDerive.
           now apply IHt.
         * apply andb_prop in e; destruct e.
           apply disj_true in H1.
-          apply in_map_iff in H1.
-          destruct H1 as [i [? ?]].
-          eapply DeriveStarInnerJump.
+          handle_lists.
+          eapply DeriveStarInnerJump; intuition.
           -- now apply nullable_dec.
           -- apply initial_list, H2.
-          -- now apply IHt.
   Qed.
 
   Equations derive_list (t: term) : list (derivative t) := {
@@ -635,16 +608,15 @@ Section AntimirovDerive.
     - now left.
     - now left.
     - right; now left.
-    - apply in_app_iff; left.
-      apply in_map_iff; now exists x.
-    - apply in_app_iff; right.
-      apply in_map_iff; now exists x.
-    - apply in_app_iff; left.
-      apply in_map_iff; now exists x.
-    - apply in_app_iff; right.
-      apply in_map_iff; now exists x.
-    - right.
-      apply in_map_iff; now exists x.
+    - handle_lists; left.
+      handle_lists; eexists; intuition.
+    - handle_lists; right;
+      handle_lists; eexists; intuition.
+    - handle_lists; left.
+      handle_lists; eexists; intuition.
+    - handle_lists; right;
+      handle_lists; eexists; intuition.
+    - right; handle_lists; now eexists.
     - now left.
   Qed.
   Next Obligation.
@@ -666,39 +638,21 @@ Section AntimirovDerive.
       + apply NoDup_map; auto; intros.
         now inversion H0; clean_exists.
       + intros; intro.
-        apply in_map_iff in H0, H1.
-        destruct H0 as [d1 [? ?]].
-        destruct H1 as [d2 [? ?]].
-        subst.
-        discriminate.
+        now repeat (handle_lists; subst).
       + intros; intro.
-        apply in_map_iff in H0, H1.
-        destruct H0 as [d1 [? ?]].
-        destruct H1 as [d2 [? ?]].
-        subst.
-        discriminate.
+        now repeat (handle_lists; subst).
     - apply NoDup_app.
       + apply NoDup_map; auto; intros.
         now inversion H0; clean_exists.
       + apply NoDup_map; auto; intros.
         now inversion H0; clean_exists.
       + intros; intro.
-        apply in_map_iff in H0, H1.
-        destruct H0 as [d1 [? ?]].
-        destruct H1 as [d2 [? ?]].
-        subst.
-        discriminate.
+        now repeat (handle_lists; subst).
       + intros; intro.
-        apply in_map_iff in H0, H1.
-        destruct H0 as [d1 [? ?]].
-        destruct H1 as [d2 [? ?]].
-        subst.
-        discriminate.
+        now repeat (handle_lists; subst).
     - constructor.
       + intro.
-        apply in_map_iff in H0.
-        destruct H0 as [d [? ?]].
-        discriminate.
+        now repeat (handle_lists; subst).
       + apply NoDup_map; auto; intros.
         now inversion H0; clean_exists.
   Qed.
@@ -741,8 +695,7 @@ Section AntimirovDerive.
         symmetry; apply initial_reconstruct.
         apply term_matches_sum in H0_0.
         destruct H0_0 as [t'' [? ?]].
-        apply in_map_iff in H0.
-        destruct H0 as [t''' [? ?]]; subst.
+        handle_lists; subst.
         apply initial_list in H2.
         apply IHt2 in H1.
         destruct H1 as [t'' [? ?]].
@@ -768,8 +721,7 @@ Section AntimirovDerive.
         symmetry; apply initial_reconstruct.
         apply term_matches_sum in H1.
         destruct H1 as [t'' [? ?]].
-        apply in_map_iff in H0.
-        destruct H0 as [t''' [? ?]]; subst.
+        handle_lists; subst.
         apply initial_list in H3.
         apply IHt in H1.
         destruct H1 as [t'' [? ?]].
@@ -881,10 +833,9 @@ Section AntimirovAutomaton.
     symmetry; apply initial_reconstruct.
     apply term_matches_sum in H0.
     destruct H0 as [? [? ?]].
-    apply in_map_iff in H0.
-    destruct H0 as [t' [? ?]]; subst.
+    handle_lists; subst.
     apply initial_list in H2.
-    exists t'; intuition.
+    eexists; intuition.
     now apply automaton_antimirov_accepts_local.
   Qed.
 

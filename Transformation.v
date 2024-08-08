@@ -7,6 +7,7 @@ Require Import KA.Automata.
 Require Import KA.Solve.
 Require Import KA.Terms.
 Require Import KA.Vectors.
+Require Import KA.Utilities.
 
 Local Open Scope ka_scope.
 
@@ -235,21 +236,17 @@ Section AutomatonTransformationMonoid.
       rewrite <- sum_distribute_left.
       rewrite map_map.
       apply sum_lequiv_all; intros.
-      apply in_map_iff in H4.
-      destruct H4 as [q'' [? ?]]; subst.
-      apply filter_In in H5.
-      destruct H5 as [_ ?].
+      repeat (handle_lists; subst); intuition.
       apply finite_eqb_eq in H3; subst.
-      apply matrix_product_characterise in H4.
-      destruct H4 as [q3 [? ?]].
+      apply matrix_product_characterise in H6.
+      destruct H6 as [q3 [? ?]].
       apply term_lequiv_trans with (t2 := compute_automaton_solution aut q3).
-      + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut q'').
+      + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut x).
         rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut q3).
         now apply compute_automaton_solution_least_solution.
       + apply sum_lequiv_member.
-        apply in_map_iff.
-        exists q3; intuition.
-        apply filter_In; intuition.
+        handle_lists; eexists; intuition.
+        handle_lists; intuition.
     - intros m' ?; unfold automaton_sum_reached_paths.
       simpl in H3.
       apply finite_eqb_eq in H3; subst.
@@ -257,9 +254,8 @@ Section AutomatonTransformationMonoid.
       + rewrite <- ETimesUnitRight with (t := compute_automaton_solution aut q').
         now apply compute_automaton_solution_least_solution.
       + apply sum_lequiv_member.
-        apply in_map_iff.
-        exists q'; intuition.
-        apply filter_In; intuition.
+        handle_lists; eexists; intuition.
+        handle_lists; intuition.
   Qed.
 
   Definition automaton_sum_accepting_matrices
@@ -293,25 +289,17 @@ Section AutomatonTransformationMonoid.
       + unfold automaton_sum_accepting_matrices.
         rewrite <- sum_distribute_left.
         apply sum_lequiv_all; intros.
-        apply in_map_iff in H4.
-        destruct H4 as [t [? ?]]; subst.
-        apply in_map_iff in H5.
-        destruct H5 as [q'' [? ?]]; subst.
-        apply filter_In in H5.
-        destruct H5 as [_ ?].
-        simpl in H3.
+        repeat (handle_lists; subst); intuition.
         apply finite_eqb_eq in H3; subst.
-        unfold matrix_product_bool in H4.
-        unfold vector_inner_product_bool in H4.
-        apply disj_true in H4.
-        apply in_map_iff in H4.
-        destruct H4 as [? [? _]].
+        unfold matrix_product_bool in H6.
+        unfold vector_inner_product_bool in H6.
+        apply disj_true in H6.
+        handle_lists.
         apply andb_prop in H3; destruct H3.
         eapply term_lequiv_trans; swap 1 2.
         * apply sum_lequiv_member.
-          apply in_map_iff.
-          eexists; intuition.
-          apply filter_In; intuition.
+          handle_lists; eexists; intuition.
+          handle_lists; intuition.
         * eapply automaton_solution_move; eauto.
           apply automaton_solution_invariant.
           apply compute_automaton_solution_least_solution.
@@ -320,19 +308,15 @@ Section AutomatonTransformationMonoid.
         unfold automaton_sum_accepting_matrices.
         eapply term_lequiv_trans; swap 1 2.
         * apply sum_lequiv_member.
-          apply in_map_iff.
-          eexists; intuition.
-          apply filter_In; intuition.
+          handle_lists; eexists; intuition.
+          handle_lists; intuition.
         * eapply automaton_solution_halt; eauto.
           apply automaton_solution_invariant.
           apply compute_automaton_solution_least_solution.
     - unfold automaton_sum_accepting_matrices.
       apply sum_lequiv_all; intros.
-      apply in_map_iff in H3.
-      destruct H3 as [q'' [? ?]]; subst.
-      apply filter_In in H4.
-      destruct H4 as [_ ?].
-      apply finite_eqb_eq in H3; subst.
+      repeat handle_lists; intuition; subst.
+      apply finite_eqb_eq in H6; subst.
       apply term_lequiv_refl.
   Qed.
 
@@ -350,7 +334,7 @@ Section AutomatonTransformationMonoid.
   Proof.
     unfold vector_inner_product_bool.
     rewrite disj_true.
-    rewrite in_map_iff.
+    handle_lists.
     setoid_rewrite Bool.andb_true_iff.
     revert q; induction w; intros.
     - firstorder.

@@ -564,44 +564,27 @@ Section Powers.
        (map (kleene_power K x) (seq 0 (length finite_enum)))
   .
   Proof.
-    apply in_map_iff.
+    handle_lists.
     pose proof (pigeonhole_principle (map (kleene_power K x)
                                           (seq 0 (S (length finite_enum))))).
     destruct H0.
     - rewrite map_length, seq_length; lia.
     - destruct H0 as [l1 [l2 [xr ?]]].
-      apply map_eq_app in H0.
-      destruct H0 as [l1' [l2' [? [? ?]]]].
-      apply map_eq_app in H2.
-      destruct H2 as [l3' [l4' [? [? ?]]]].
-      apply map_eq_app in H4.
-      destruct H4 as [l5' [l6' [? [? ?]]]].
-      apply map_eq_app in H6.
-      destruct H6 as [l7' [l8' [? [? ?]]]].
-      apply map_eq_cons in H3.
-      destruct H3 as [n0 [? [? [? ?]]]].
-      apply map_eq_cons in H7.
-      destruct H7 as [n1 [? [? [? ?]]]].
-      apply map_eq_nil in H12, H10.
-      subst.
-      assert (0 <= n1 < S (length finite_enum)).
-      + replace (S (length finite_enum)) with (0 + S (length finite_enum))%nat by lia.
-        rewrite <- in_seq.
-        rewrite H0.
-        apply in_or_app; right.
-        apply in_or_app; right.
-        apply in_or_app; right.
-        simpl; now left.
+      repeat handle_lists; subst.
+      assert (0 <= x9 < S (length finite_enum)).
+      + replace (S (length finite_enum))
+          with (0 + S (length finite_enum))%nat by lia.
+        rewrite <- in_seq, H0.
+        do 3 (handle_lists; right).
+        now repeat left.
       + rewrite app_assoc in H0.
-        eapply seq_order with (n := n0) (m := n1) in H0.
-        * exists (length finite_enum - (n1 - n0)); split.
+        eapply seq_order with (n := x11) (m := x9) in H0.
+        * exists (length finite_enum - (x9 - x11)); split.
           -- erewrite <- kleene_power_reduce; try lia; auto.
           -- apply in_seq; lia.
-        * apply in_or_app; right.
-          simpl; now left.
-        * apply in_or_app; right.
-          apply in_or_app; left.
-          simpl; now left.
+        * handle_lists; right; now left.
+        * handle_lists; right.
+          handle_lists; now repeat left.
   Qed.
 
   Lemma kleene_star_sum_powers_overlap
@@ -618,21 +601,16 @@ Section Powers.
     unfold kleene_star_sum_powers_finite.
     rewrite kleene_sum_distributes_left.
     apply kleene_sum_below_all; intros.
-    apply in_map_iff in H0.
-    destruct H0 as [x'' [? ?]]; subst.
-    apply in_map_iff in H1.
-    destruct H1 as [n [? ?]]; subst.
-    apply in_seq in H1; simpl in H1.
-    destruct H1 as [_ ?].
+    repeat handle_lists; subst.
+    apply in_seq in H1; simpl in H1; destruct H1 as [_ ?].
     apply kleene_sum_member.
-    replace (kleene_multiply K x (kleene_power K x n))
-      with (kleene_power K x (S n)) by reflexivity.
-    destruct (Compare_dec.le_gt_dec (length finite_enum) (S n)).
-    - assert (S n = length finite_enum) by lia.
+    replace (kleene_multiply K x (kleene_power K x x0))
+      with (kleene_power K x (S x0)) by reflexivity.
+    destruct (Compare_dec.le_gt_dec (length finite_enum) (S x0)).
+    - assert (S x0 = length finite_enum) by lia.
       rewrite H1; clear H0 l H1.
       apply kleene_power_finite.
-    - apply in_map_iff.
-      exists (S n); intuition.
+    - handle_lists; eexists; intuition.
       apply in_seq; lia.
   Qed.
 
@@ -649,8 +627,7 @@ Section Powers.
   Proof.
     unfold kleene_star_sum_powers_finite.
     eapply kleene_sum_member.
-    apply in_map_iff.
-    exists 0%nat; intuition.
+    handle_lists; exists 0%nat; intuition.
     apply in_seq.
     enough (length finite_enum <> 0%nat) by lia.
     assert (In (kleene_unit K) finite_enum) by (apply finite_cover).
@@ -678,9 +655,8 @@ Section Powers.
       + apply kleene_star_sum_powers_overlap.
       + apply kleene_star_sum_powers_unit.
     - apply kleene_sum_below_all; intros.
-      apply in_map_iff in H0.
-      destruct H0 as [n [? ?]]; subst.
-      induction n.
+      handle_lists; subst.
+      induction x0.
       + simpl.
         rewrite <- kleene_star_unroll.
         rewrite <- kleene_plus_assoc.
@@ -691,7 +667,7 @@ Section Powers.
         rewrite kleene_plus_assoc.
         rewrite <- kleene_distribute_left.
         rewrite kleene_plus_commute with (x1 := kleene_star K x).
-        rewrite IHn; auto.
+        rewrite IHx0; auto.
         apply in_seq.
         apply in_seq in H1.
         lia.
@@ -735,12 +711,7 @@ Section StarContinuity.
     rewrite kleene_sum_distributes_right.
     rewrite kleene_sum_distributes_left.
     apply kleene_sum_below_all; intros.
-    apply in_map_iff in H1.
-    destruct H1 as [x1 [? ?]]; subst.
-    apply in_map_iff in H2.
-    destruct H2 as [x2 [? ?]]; subst.
-    apply in_map_iff in H2.
-    destruct H2 as [x3 [? ?]]; subst.
+    repeat handle_lists; subst.
     apply H0.
   Qed.
 End StarContinuity.
@@ -877,13 +848,11 @@ Section FiniteRelationalModels.
   Proof.
     simpl; unfold matrix_product_bool, vector_inner_product_bool; intros.
     apply disj_true in H2.
-    apply in_map_iff in H2.
-    destruct H2 as [x [? _]].
+    handle_lists.
     apply Bool.andb_true_iff in H2.
     destruct H2.
     apply disj_true.
-    apply in_map_iff.
-    eexists; intuition.
+    handle_lists; eexists; intuition.
   Qed.
 
   Lemma matrix_iterate_monotone
@@ -965,8 +934,7 @@ Section FiniteRelationalModels.
     extensionality x1; extensionality x2.
     unfold matrix_product_bool, matrix_empty, vector_inner_product_bool.
     apply disj_false; intros.
-    apply in_map_iff in H0.
-    destruct H0 as [? [? ?]].
+    handle_lists.
     now simpl in H0.
   Qed.
 
@@ -981,9 +949,8 @@ Section FiniteRelationalModels.
     extensionality x1; extensionality x2.
     unfold matrix_product_bool, matrix_empty, vector_inner_product_bool.
     apply disj_false; intros.
-    apply in_map_iff in H0.
-    destruct H0 as [? [? ?]].
-    now rewrite Bool.andb_false_r in H0.
+    handle_lists; subst.
+    btauto.
   Qed.
 
   Lemma matrix_product_distribute_right
@@ -1003,30 +970,23 @@ Section FiniteRelationalModels.
       apply Bool.Is_true_eq_left.
       apply Bool.orb_true_iff.
       apply disj_true in H0.
-      apply in_map_iff in H0.
-      destruct H0 as [x'' [? _]].
+      handle_lists.
       apply Bool.andb_true_iff in H0; destruct H0.
       apply Bool.orb_true_iff in H0; destruct H0.
       + left; apply disj_true.
-        apply in_map_iff.
-        eexists; intuition.
+        handle_lists; eexists; intuition.
       + right; apply disj_true.
-        apply in_map_iff.
-        eexists; intuition.
+        handle_lists; eexists; intuition.
     - apply Bool.Is_true_eq_true in H0.
       apply Bool.orb_true_iff in H0.
       apply Bool.Is_true_eq_left.
       apply disj_true.
-      apply in_map_iff.
+      handle_lists.
       destruct H0.
       + apply disj_true in H0.
-        apply in_map_iff in H0.
-        destruct H0 as [x'' [? _]].
-        eexists; intuition.
+        handle_lists; eexists; intuition.
       + apply disj_true in H0.
-        apply in_map_iff in H0.
-        destruct H0 as [x'' [? _]].
-        eexists; intuition.
+        handle_lists; eexists; intuition.
   Qed.
 
   Lemma matrix_product_distribute_left
@@ -1046,30 +1006,22 @@ Section FiniteRelationalModels.
       apply Bool.Is_true_eq_left.
       apply Bool.orb_true_iff.
       apply disj_true in H0.
-      apply in_map_iff in H0.
-      destruct H0 as [x'' [? _]].
+      handle_lists.
       apply Bool.andb_true_iff in H0; destruct H0.
-      apply Bool.orb_true_iff in H1; destruct H1.
+      apply Bool.orb_true_iff in H2; destruct H2.
       + left; apply disj_true.
-        apply in_map_iff.
-        eexists; intuition.
+        handle_lists; eexists; intuition.
       + right; apply disj_true.
-        apply in_map_iff.
-        eexists; intuition.
+        handle_lists; eexists; intuition.
     - apply Bool.Is_true_eq_true in H0.
       apply Bool.orb_true_iff in H0.
       apply Bool.Is_true_eq_left.
       apply disj_true.
-      apply in_map_iff.
       destruct H0.
       + apply disj_true in H0.
-        apply in_map_iff in H0.
-        destruct H0 as [x'' [? _]].
-        eexists; intuition.
+        repeat handle_lists; eexists; intuition.
       + apply disj_true in H0.
-        apply in_map_iff in H0.
-        destruct H0 as [x'' [? _]].
-        eexists; intuition.
+        repeat handle_lists; eexists; intuition.
   Qed.
 
   Lemma matrix_power_series_assoc
@@ -1257,11 +1209,8 @@ Section FiniteRelationalModels.
         unfold matrix_product_bool in *.
         unfold vector_inner_product_bool in *.
         apply disj_true.
-        apply in_map_iff.
         apply disj_true in H1.
-        apply in_map_iff in H1.
-        destruct H1 as [? [? ?]].
-        eexists; intuition.
+        repeat handle_lists; eexists; intuition.
   Qed.
   Next Obligation.
     apply matrix_plus_partial_order_rel.

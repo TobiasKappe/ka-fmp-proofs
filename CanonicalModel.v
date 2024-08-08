@@ -13,6 +13,7 @@ Require Import KA.Vectors.
 Require Import KA.Transformation.
 Require Import KA.Solve.
 Require Import KA.ModelTheory.
+Require Import KA.Utilities.
 
 Local Open Scope ka_scope.
 Local Open Scope bool_scope.
@@ -54,15 +55,13 @@ Section StructurePowerset.
   .
   Proof.
     unfold powerset_multiplication.
-    rewrite disj_true, in_map_iff.
-    split; intros.
-    - destruct H0 as [(x1', x2') [? ?]].
-      repeat rewrite Bool.andb_true_iff in H0.
-      destruct H0 as [[? ?] ?].
+    rewrite disj_true; intuition.
+    - handle_lists; destruct x0.
+      repeat rewrite Bool.andb_true_iff in H0; intuition.
       apply finite_eqb_eq in H0.
-      now exists x1', x2'.
+      firstorder.
     - destruct H0 as [x1' [x2' [? [? ?]]]].
-      exists (x1', x2').
+      handle_lists; exists (x1', x2'); simpl.
       repeat rewrite Bool.andb_true_iff; intuition.
       + now apply finite_eqb_eq.
       + replace (list_prod finite_enum finite_enum)
@@ -278,9 +277,8 @@ Section StructurePowerset.
     - extensionality x.
       unfold powerset_multiplication.
       symmetry; apply disj_false; intros.
-      apply in_map_iff in H0.
-      destruct H0 as [(x1, x2) [? ?]]; subst.
-      btauto.
+      handle_lists; destruct x1.
+      subst; btauto.
     - rewrite IHn.
       unfold kleene_star_step at 2, kleene_star_step_offset at 1.
       rewrite powerset_union_multiply_distribute_right.
@@ -388,17 +386,15 @@ Section StructurePowerset.
     extensionality x'.
     unfold powerset_multiplication.
     apply disj_false; intros.
-    apply in_map_iff in H0.
-    destruct H0 as [(x1, x2') [? ?]]; subst.
-    btauto.
+    handle_lists; destruct x1.
+    subst; btauto.
   Qed.
   Next Obligation.
     extensionality x'.
     unfold powerset_multiplication.
     apply disj_false; intros.
-    apply in_map_iff in H0.
-    destruct H0 as [(x1, x2') [? ?]]; subst.
-    btauto.
+    handle_lists; destruct x1.
+    subst; btauto.
   Qed.
   Next Obligation.
     apply powerset_union_multiply_distribute_left.
@@ -624,8 +620,7 @@ Section StructureNormalForm.
     apply automaton_accepts_transition_matrix in H2.
     unfold vector_inner_product_bool in H2.
     apply disj_true in H2.
-    apply in_map_iff in H2.
-    destruct H2 as [t'' [? ?]].
+    handle_lists.
     apply andb_prop in H2.
     destruct H2 as [? ?].
     eapply term_lequiv_trans.
@@ -649,9 +644,8 @@ Section StructureNormalForm.
   Proof.
     eapply term_lequiv_trans; swap 1 2.
     - apply sum_lequiv_member.
-      apply in_map_iff.
-      eexists; intuition.
-      apply filter_In; intuition.
+      handle_lists; eexists; intuition.
+      handle_lists; intuition.
       + apply finite_cover.
       + now apply finite_eqb_eq.
     - apply automaton_relation_solution_letter.
@@ -676,9 +670,8 @@ Section StructureNormalForm.
     - autorewrite with kleene_interp.
       eapply term_lequiv_trans; swap 1 2.
       + apply sum_lequiv_member.
-        apply in_map_iff.
-        eexists; intuition.
-        apply filter_In; intuition.
+        handle_lists; eexists; intuition.
+        handle_lists; intuition.
         * apply finite_cover.
         * now apply finite_eqb_eq.
       + unfold automaton_relation_solution.
@@ -692,62 +685,37 @@ Section StructureNormalForm.
       + eapply term_lequiv_trans; eauto.
         apply sum_lequiv_containment;
         unfold incl; intro t'; intros.
-        apply in_map_iff in H0.
-        destruct H0 as [m [? ?]].
-        apply filter_In in H1.
-        destruct H1 as [_ ?].
-        apply in_map_iff.
-        exists m; intuition.
-        apply filter_In; intuition.
-        * apply finite_cover.
-        * autorewrite with kleene_interp; simpl.
-          unfold powerset_union.
-          now rewrite H1.
+        repeat handle_lists; eexists; intuition.
+        handle_lists; intuition.
+        autorewrite with kleene_interp; simpl.
+        unfold powerset_union.
+        now rewrite H3.
       + eapply term_lequiv_trans; eauto.
         apply sum_lequiv_containment;
         unfold incl; intro t'; intros.
-        apply in_map_iff in H0.
-        destruct H0 as [m [? ?]].
-        apply filter_In in H1.
-        destruct H1 as [_ ?].
-        apply in_map_iff.
-        exists m; intuition.
-        apply filter_In; intuition.
-        * apply finite_cover.
-        * autorewrite with kleene_interp; simpl.
-          unfold powerset_union.
-          rewrite H1; btauto.
+        repeat handle_lists; eexists; intuition.
+        handle_lists; intuition.
+        autorewrite with kleene_interp; simpl.
+        unfold powerset_union.
+        rewrite H3; btauto.
     - eapply term_lequiv_trans.
       + apply times_mor_mono; eauto.
       + rewrite <- sum_distribute_left.
         apply sum_lequiv_all; intros.
-        apply in_map_iff in H0.
-        destruct H0 as [t'' [? ?]]; subst.
-        apply in_map_iff in H1.
-        destruct H1 as [m [? ?]]; subst.
-        apply filter_In in H1.
-        destruct H1 as [_ ?].
+        repeat handle_lists; intuition; subst.
         rewrite <- sum_distribute_right.
         apply sum_lequiv_all; intros.
-        apply in_map_iff in H1.
-        destruct H1 as [t'' [? ?]]; subst.
-        apply in_map_iff in H2.
-        destruct H2 as [m' [? ?]]; subst.
-        apply filter_In in H2.
-        destruct H2 as [_ ?].
+        repeat handle_lists; intuition; subst.
         eapply term_lequiv_trans;
         [apply automaton_relation_solution_merge |].
         apply sum_lequiv_member.
-        apply in_map_iff.
-        eexists; intuition.
-        apply filter_In.
-        intuition; [apply finite_cover|].
+        repeat handle_lists; eexists; intuition.
+        handle_lists; intuition; try apply finite_cover.
         autorewrite with kleene_interp.
         unfold kleene_multiply; simpl.
         unfold powerset_multiplication.
         apply disj_true.
-        apply in_map_iff.
-        exists (m', m).
+        handle_lists; exists (x0, x).
         repeat rewrite andb_true_intro; intuition.
         * apply in_prod; apply finite_cover.
         * now apply finite_eqb_eq.
@@ -757,28 +725,15 @@ Section StructureNormalForm.
       + eapply term_lequiv_trans; [ apply times_mor_mono; now eauto |].
         rewrite <- sum_distribute_left.
         apply sum_lequiv_all; intros t'''; intros.
-        apply in_map_iff in H0.
-        destruct H0 as [t'' [? ?]]; subst.
-        apply in_map_iff in H1.
-        destruct H1 as [m [? ?]]; subst.
-        apply filter_In in H1.
-        destruct H1 as [_ ?].
-        eapply term_lequiv_trans.
-        apply times_mor_mono; eauto; reflexivity.
+        repeat handle_lists; intuition; subst.
         rewrite <- sum_distribute_right.
         apply sum_lequiv_all; intros.
-        apply in_map_iff in H1.
-        destruct H1 as [t'' [? ?]]; subst.
-        apply in_map_iff in H2.
-        destruct H2 as [m' [? ?]]; subst.
-        apply filter_In in H2.
-        destruct H2 as [_ ?].
+        repeat handle_lists; intuition; subst.
         eapply term_lequiv_trans;
         [ apply automaton_relation_solution_merge |].
         apply sum_lequiv_member.
-        apply in_map_iff.
-        eexists; intuition.
-        apply filter_In; intuition.
+        handle_lists; eexists; intuition.
+        handle_lists; intuition.
         * apply finite_cover.
         * rewrite kleene_interp_sound with (t2 := t' ;; t' * + 1)
             by (apply EStarLeft).
@@ -788,20 +743,14 @@ Section StructureNormalForm.
           unfold kleene_multiply; simpl.
           unfold powerset_multiplication.
           apply disj_true.
-          apply in_map_iff.
-          exists (m', m); simpl.
+          handle_lists; exists (x0, x); simpl.
           repeat rewrite andb_true_intro; intuition.
-          -- apply in_prod; apply in_map_iff.
-             ++ exists (uncurry m'); intuition.
-                apply Finite.finite_subsets_finite_obligation_2.
-             ++ exists (uncurry m); intuition.
-                apply Finite.finite_subsets_finite_obligation_2.
+          -- apply in_prod; intuition.
           -- now apply finite_eqb_eq.
       + eapply term_lequiv_trans; swap 1 2.
         * apply sum_lequiv_member.
-          apply in_map_iff.
-          eexists; intuition.
-          apply filter_In; intuition.
+          handle_lists; eexists; intuition.
+          handle_lists; intuition.
           -- apply finite_cover.
           -- rewrite kleene_interp_sound with (t2 := t';; t' * + 1)
                by apply EStarLeft.

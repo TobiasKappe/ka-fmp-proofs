@@ -7,6 +7,7 @@ Require Import KA.Finite.
 Require Import KA.Booleans.
 Require Import KA.Terms.
 Require Import KA.Scope.
+Require Import KA.Utilities.
 Local Open Scope ka_scope.
 
 Section Vectors.
@@ -454,9 +455,7 @@ Section VectorBool.
   Defined.
   Next Obligation.
     replace x with (curry (uncurry x)) by reflexivity.
-    apply in_map_iff.
-    exists (uncurry x).
-    intuition.
+    handle_lists; eexists; intuition.
     replace finite_subsets
       with (@finite_enum (prod X Y -> bool) _)
       by reflexivity.
@@ -515,7 +514,7 @@ Section VectorBool.
     unfold matrix_product_bool.
     unfold vector_inner_product_bool.
     rewrite disj_true.
-    rewrite in_map_iff.
+    handle_lists.
     setoid_rewrite Bool.andb_true_iff.
     split; intros.
     - destruct H0 as [q3 [? ?]].

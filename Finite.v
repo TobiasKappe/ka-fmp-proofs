@@ -91,12 +91,9 @@ Section FiniteIsomorphism.
   Proof.
     induction l.
     - dependent destruction p.
-    - dependent destruction p.
-      + autorewrite with list_lookup_helper.
-        now left.
-      + autorewrite with list_lookup_helper.
-        right.
-        apply IHl.
+    - dependent destruction p;
+      autorewrite with list_lookup_helper;
+      intuition.
   Qed.
 
   Lemma list_lookup_helper_injective
@@ -221,16 +218,15 @@ Module FiniteBijection.
   Next Obligation.
     pose proof (bijection_surjective f).
     rewrite <- (H0 x).
-    apply in_map_iff.
-    eexists; intuition.
+    handle_lists; eexists; intuition.
   Qed.
   Next Obligation.
-    eapply NoDup_map_inv with (f := bijection_inverse f).
-    rewrite map_map.
-    rewrite map_ext with (g := id).
+    eapply NoDup_map_inv.
+    handle_lists.
+    erewrite map_ext.
     - rewrite map_id.
       apply finite_nodup.
-    - intros; unfold id; simpl.
+    - intros; simpl.
       apply bijection_injective with (b := f).
       now rewrite bijection_surjective.
   Qed.
@@ -251,7 +247,7 @@ Section FiniteUtilities.
     constructor.
     + intro.
       inversion H; subst.
-      apply in_app_or in H3.
+      handle_lists.
       destruct H3; auto.
       eapply H2; eauto with datatypes.
     + eapply IHl; eauto with datatypes.
@@ -269,12 +265,9 @@ Section FiniteUtilities.
     intros.
     induction l; simpl; constructor.
     - intro Hin.
-      apply in_map_iff in Hin.
-      destruct Hin as [x [Heq Hin]].
-      apply H in Heq.
-      subst.
-      inversion H0.
-      congruence.
+      handle_lists.
+      apply H in H1; subst.
+      now inversion H0.
     - inversion H0.
       eauto.
   Qed.
@@ -358,23 +351,18 @@ Section FiniteSubset.
       extensionality p.
       dependent destruction p.
     - simpl.
-      apply in_app_iff.
-      repeat rewrite in_map_iff.
-      destruct (f PHere) eqn:?.
-      + right.
-        exists (fun p => f (PThere p)).
-        split.
-        * extensionality p.
-          dependent destruction p;
-          now autorewrite with position_subset_glue.
-        * apply IHn.
-      + left.
-        exists (fun p => f (PThere p)).
-        split.
-        * extensionality p.
-          dependent destruction p;
-          now autorewrite with position_subset_glue.
-        * apply IHn.
+      handle_lists.
+      destruct (f PHere) eqn:?; [right | left].
+      + handle_lists; eexists.
+        intuition; eauto.
+        extensionality p.
+        dependent destruction p;
+        now autorewrite with position_subset_glue.
+      + handle_lists; eexists.
+        intuition; eauto.
+        extensionality p.
+        dependent destruction p;
+        now autorewrite with position_subset_glue.
   Qed.
 
   Lemma position_subsets_nodup (n: nat):
@@ -398,20 +386,16 @@ Section FiniteSubset.
         rewrite <- position_subset_glue_equation_2 with (f := x) (b := true) at 1.
         rewrite <- position_subset_glue_equation_2 with (f := y) (b := true).
         now rewrite H.
-      + intros; intro.
-        rewrite in_map_iff in H, H0.
-        destruct H as [x0 [? ?]], H0 as [x1 [? ?]]; subst.
-        apply Bool.diff_true_false.
-        rewrite <- position_subset_glue_equation_1 with (f := x1) at 1.
-        rewrite <- position_subset_glue_equation_1 with (f := x0).
-        now rewrite H0.
-      + intros; intro.
-        rewrite in_map_iff in H, H0.
-        destruct H as [x0 [? ?]], H0 as [x1 [? ?]]; subst.
+      + intuition; repeat handle_lists.
         apply Bool.diff_true_false.
         rewrite <- position_subset_glue_equation_1 with (f := x0) at 1.
         rewrite <- position_subset_glue_equation_1 with (f := x1).
-        now rewrite H0.
+        congruence.
+      + intuition; repeat handle_lists.
+        apply Bool.diff_true_false.
+        rewrite <- position_subset_glue_equation_1 with (f := x1) at 1.
+        rewrite <- position_subset_glue_equation_1 with (f := x0).
+        congruence.
   Qed.
 
   Definition finite_subsets {X: Type} `{Finite X}: list (X -> bool) :=
@@ -473,8 +457,7 @@ Section FiniteSubset.
       now subst.
   Defined.
   Next Obligation.
-    unfold finite_subsets.
-    apply in_map_iff.
+    unfold finite_subsets; handle_lists.
     exists (fun p => x (list_lookup p)); split.
     - extensionality x'.
       now rewrite list_lookup_index.
@@ -483,7 +466,7 @@ Section FiniteSubset.
   Next Obligation.
     unfold finite_subsets; simpl.
     eapply NoDup_map_inv with (f := fun m => m ∘ list_lookup).
-    rewrite map_map; apply NoDup_map; intuition.
+    handle_lists; apply NoDup_map; intuition.
     - extensionality p.
       rewrite <- list_index_lookup with (p := p).
       repeat fold_compose.
@@ -514,11 +497,9 @@ Section FiniteCoproduct.
       + right; congruence.
   Qed.
   Next Obligation.
-    apply in_app_iff.
-    repeat rewrite in_map_iff.
-    destruct x.
-    - left; exists x; intuition.
-    - right; exists y; intuition.
+    handle_lists.
+    destruct x; [left|right].
+    all: handle_lists; eexists; intuition.
   Qed.
   Next Obligation.
     apply NoDup_app.
@@ -529,15 +510,9 @@ Section FiniteCoproduct.
       + intros; now inversion H1.
       + apply finite_nodup.
     - intros; intro.
-      rewrite in_map_iff in H1, H2.
-      destruct H1 as [x' [? _]].
-      destruct H2 as [x'' [? _]].
-      now subst.
+      repeat handle_lists; congruence.
     - intros; intro.
-      rewrite in_map_iff in H1, H2.
-      destruct H1 as [x' [? _]].
-      destruct H2 as [x'' [? _]].
-      now subst.
+      repeat handle_lists; congruence.
   Qed.
 End FiniteCoproduct.
 
@@ -574,21 +549,12 @@ Section FiniteProduct.
       + apply IHl1; auto.
         now inversion H.
       + intros.
-        rewrite in_map_iff in H1.
-        destruct x.
-        destruct H1 as [? [? ?]].
-        inversion H1; subst.
-        inversion H.
-        contradict H5.
-        apply in_prod_iff in H5.
+        inversion_clear H; contradict H2.
+        repeat (handle_lists; subst).
         intuition.
       + intros.
-        inversion_clear H.
-        contradict H2.
-        apply in_map_iff in H2.
-        destruct H2 as [? [? ?]].
-        subst.
-        apply in_prod_iff in H1.
+        inversion_clear H; contradict H2.
+        repeat (handle_lists; subst).
         intuition.
   Qed.
 
@@ -614,8 +580,7 @@ Section FiniteProduct.
       now inversion n.
   Defined.
   Next Obligation.
-    apply in_prod;
-    apply finite_cover.
+    handle_lists; intuition.
   Qed.
   Next Obligation.
     apply NoDup_prod;
@@ -894,30 +859,21 @@ Section FiniteFixpoint.
       rewrite map_length, seq_length.
       lia.
     - intuition.
-      apply map_eq_app in H1.
-      destruct H1 as [ln1 [lnt1 [? [? ?]]]]; subst.
-      apply map_eq_app in H4.
-      destruct H4 as [ln2 [lnt2 [? [? ?]]]]; subst.
-      apply map_eq_app in H5.
-      destruct H5 as [ln3 [lnt3 [? [? ?]]]]; subst.
-      apply map_eq_app in H6.
-      destruct H6 as [ln4 [ln5 [? [? ?]]]]; subst.
-      destruct ln2; simpl in H4; [ discriminate | inversion H4; clear H4 ].
-      destruct ln4; simpl in H5; [ discriminate | inversion H5; clear H5 ].
-      apply map_eq_nil in H7, H8; subst.
+      subst points.
+      repeat handle_lists; subst.
       intros; unfold mono_fixpoint.
-      apply iterate_fixed with (n := n); auto.
-      + assert (In n (seq 0 (S (length finite_enum)))).
+      apply iterate_fixed with (n := x9); auto.
+      + assert (In x9 (seq 0 (S (length finite_enum)))).
         * rewrite H1.
-          rewrite in_app_iff; right; now left.
+          handle_lists; intuition.
         * apply in_seq in H3; now lia.
-      + rewrite <- H4; symmetry.
-        eapply iterate_repeat with (n := n); auto.
+      + rewrite <- H11; symmetry.
+        eapply iterate_repeat with (n := x9); auto.
         eapply seq_order.
         * rewrite <- app_assoc.
           apply H1.
-        * rewrite in_app_iff; right; now left.
-        * rewrite in_app_iff; right; now left.
+        * handle_lists; intuition.
+        * handle_lists; intuition.
   Qed.
 
   Lemma mono_fixpoint_least
@@ -984,13 +940,12 @@ Section FinitePositions.
     dependent destruction x;
     autorewrite with position_enum.
     - now left.
-    - right; apply in_map_iff.
-      exists x; intuition.
+    - right; handle_lists.
+      eexists; intuition.
   Qed.
   Next Obligation.
     induction n; autorewrite with position_enum; constructor.
-    - intro; apply in_map_iff in H.
-      destruct H as [p [? ?]].
+    - intro; handle_lists.
       discriminate.
     - apply NoDup_map; auto.
       intros; inversion H.

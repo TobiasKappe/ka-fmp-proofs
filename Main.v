@@ -7,10 +7,11 @@ Require Import KA.ModelTheory.
 Require Import KA.Scope.
 Require Import KA.Terms.
 Require Import KA.CanonicalModel.
+Require Import KA.Utilities.
 Local Open Scope ka_scope.
 
 Section Main.
-  Variable (A: Type).
+Variable (A: Type).
   Context `{Finite A}.
 
   Notation term := (term A).
@@ -26,11 +27,9 @@ Section Main.
     eapply term_lequiv_trans.
     + apply automaton_kleene_algebra_interp_lower.
     + apply sum_lequiv_all; intros.
-      apply in_map_iff in H1.
-      destruct H1 as [t'' [? ?]]; subst.
-      apply filter_In in H2; destruct H2 as [_ ?].
+      repeat handle_lists; intuition; subst.
       apply automaton_kleene_algebra_interp_upper.
-      rewrite <- H0. intuition.
+      rewrite <- H0; intuition.
       constructor; intuition.
   Qed.
 
