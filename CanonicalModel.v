@@ -556,13 +556,6 @@ Section StructureFromAutomaton.
         now rewrite monoid_interp_app.
       + apply kleene_star_step_mono.
   Qed.
-End StructureFromAutomaton.
-
-Section StructureNormalForm.
-  Context {A: Type}.
-  Context `{Finite A}.
-  Notation automaton := (automaton A).
-  Notation term := (term A).
 
   Lemma automaton_transition_matrix_monoid_interp
     {Q: Type}
@@ -581,6 +574,7 @@ Section StructureNormalForm.
   Qed.
 
   Lemma automaton_kleene_algebra_interp_upper
+    `{Finite A}
     (t: term)
     (m: derivative A t -> derivative A t -> bool)
   :
@@ -607,6 +601,7 @@ Section StructureNormalForm.
   Qed.
 
   Lemma automaton_kleene_algebra_interp_lower_letter
+    `{Finite A}
     (a: A)
     (t: term)
   :
@@ -627,6 +622,7 @@ Section StructureNormalForm.
   Qed.
 
   Lemma automaton_kleene_algebra_interp_lower
+    `{Finite A}
     (t t': term)
   :
     t' <=
@@ -737,4 +733,4 @@ Section StructureNormalForm.
             apply compute_automaton_solution_least_solution.
           -- now apply finite_eqb_eq.
   Qed.
-End StructureNormalForm.
+End StructureFromAutomaton.

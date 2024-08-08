@@ -576,47 +576,6 @@ Section AutomatonSolution.
       sol <== sol'
   }.
 
-  Lemma automaton_homomorphism_solution
-    {Q1 Q2: Type}
-    (aut1: automaton Q1)
-    (aut2: automaton Q2)
-    (scale: term)
-    (sol: vector Q2)
-    (h: automaton_homomorphism aut1 aut2)
-  :
-    automaton_solution aut2 scale sol ->
-    automaton_solution aut1 scale (sol ∘ h)
-  .
-  Proof.
-    split; intros.
-    - unfold compose; simpl.
-      apply H0 with (q1 := h q1).
-      now apply h.
-    - unfold compose; simpl.
-      apply H0.
-      now apply h.
-  Qed.
-
-  Lemma automaton_homomorphism_least_solution
-    {Q1 Q2: Type}
-    (aut1: automaton Q1)
-    (aut2: automaton Q2)
-    (scale: term)
-    (sol1: vector Q1)
-    (sol2: vector Q2)
-    (h: automaton_homomorphism aut1 aut2)
-  :
-    automaton_least_solution aut1 scale sol1 ->
-    automaton_least_solution aut2 scale sol2 ->
-    sol1 <== sol2 ∘ h
-  .
-  Proof.
-    intros.
-    apply H0.
-    apply automaton_homomorphism_solution.
-    apply H1.
-  Qed.
-
   Definition automaton_to_system
     {Q: Type}
     (aut: automaton Q)

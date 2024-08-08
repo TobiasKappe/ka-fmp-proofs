@@ -22,30 +22,6 @@ End Automaton.
 Arguments aut_transitions {A} {Q}.
 Arguments aut_accept {A} {Q}.
 
-Section AutomatonMorphism.
-  Context {A: Type}.
-  Notation automaton := (automaton A).
-
-  Record automaton_homomorphism
-    {Q1 Q2: Type}
-    (aut1: automaton Q1)
-    (aut2: automaton Q2)
-  := {
-    automaton_homomorphism_f :> Q1 -> Q2;
-    automaton_homomorphism_compatible:
-      forall (a: A) (q1 q1': Q1),
-      aut_transitions aut1 a q1 q1' = true ->
-      aut_transitions aut2 a (automaton_homomorphism_f q1)
-                             (automaton_homomorphism_f q1') = true;
-    automaton_homomorphism_preserve:
-      forall (q1: Q1),
-      aut_accept aut1 q1 = true ->
-      aut_accept aut2 (automaton_homomorphism_f q1) = true;
-  }.
-End AutomatonMorphism.
-
-Arguments automaton_homomorphism_f {A} {Q1} {Q2} {aut1} {aut2}.
-
 Section AutomatonLanguage.
   Context {A: Type}.
   Context `{Finite A}.
