@@ -597,28 +597,23 @@ Section AntimirovDerive.
     - rewrite IHt1.
       split; intros.
       + now subst.
-      + apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+      + now inversion H0; clean_exists.
     - rewrite IHt2.
       split; intros.
       + now subst.
-      + apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+      + now inversion H0; clean_exists.
     - rewrite IHt1.
       split; intros.
       + now subst.
-      + apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+      + now inversion H0; clean_exists.
     - rewrite IHt2.
       split; intros.
       + now subst.
-      + apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+      + now inversion H0; clean_exists.
     - rewrite IHt.
       split; intros.
       + now subst.
-      + apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+      + now inversion H0; clean_exists.
   Qed.
 
   Global Program Instance derivative_finite: forall t, Finite (derivative t).
@@ -667,11 +662,9 @@ Section AntimirovDerive.
         constructor.
     - apply NoDup_app.
       + apply NoDup_map; auto; intros.
-        apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+        now inversion H0; clean_exists.
       + apply NoDup_map; auto; intros.
-        apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+        now inversion H0; clean_exists.
       + intros; intro.
         apply in_map_iff in H0, H1.
         destruct H0 as [d1 [? ?]].
@@ -686,11 +679,9 @@ Section AntimirovDerive.
         discriminate.
     - apply NoDup_app.
       + apply NoDup_map; auto; intros.
-        apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+        now inversion H0; clean_exists.
       + apply NoDup_map; auto; intros.
-        apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+        now inversion H0; clean_exists.
       + intros; intro.
         apply in_map_iff in H0, H1.
         destruct H0 as [d1 [? ?]].
@@ -709,8 +700,7 @@ Section AntimirovDerive.
         destruct H0 as [d [? ?]].
         discriminate.
       + apply NoDup_map; auto; intros.
-        apply Eqdep.EqdepTheory.inj_pair2.
-        now inversion H0.
+        now inversion H0; clean_exists.
   Qed.
 
   Lemma term_matches_step

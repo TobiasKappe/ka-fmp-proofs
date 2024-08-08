@@ -974,7 +974,7 @@ Section FinitePositions.
       + destruct (IHn p0 p1).
         * left; congruence.
         * right; contradict n0; inversion n0.
-          now apply EqDec.inj_right_pair in H0.
+          now clean_exists.
   Qed.
 
   Equations position_enum (n: nat): list (position n) := {
@@ -1006,6 +1006,6 @@ Section FinitePositions.
       discriminate.
     - apply NoDup_map; auto.
       intros; inversion H.
-      now apply EqDec.inj_right_pair in H1.
+      now clean_exists.
   Qed.
 End FinitePositions.
