@@ -830,9 +830,7 @@ Section FiniteRelationalModels.
   .
   Proof.
     simpl; unfold matrix_plus; intros.
-    apply Bool.orb_true_iff.
-    apply Bool.orb_true_iff in H1.
-    destruct H1; firstorder.
+    propify; intuition.
   Qed.
 
   Lemma matrix_product_monotone
@@ -847,12 +845,10 @@ Section FiniteRelationalModels.
   .
   Proof.
     simpl; unfold matrix_product_bool, vector_inner_product_bool; intros.
-    apply disj_true in H2.
+    propify; intuition.
     handle_lists.
-    apply Bool.andb_true_iff in H2.
-    destruct H2.
-    apply disj_true.
-    handle_lists; eexists; intuition.
+    propify; intuition.
+    eexists; intuition.
   Qed.
 
   Lemma matrix_iterate_monotone
@@ -882,8 +878,7 @@ Section FiniteRelationalModels.
   Proof.
     simpl; intros.
     unfold matrix_plus in H1.
-    apply Bool.orb_true_iff in H1.
-    destruct H1; intuition.
+    propify; intuition.
   Qed.
 
   Lemma matrix_plus_covered_left
@@ -965,28 +960,7 @@ Section FiniteRelationalModels.
   Proof.
     extensionality x; extensionality x'.
     unfold matrix_product_bool, vector_inner_product_bool, matrix_plus.
-    apply Bool.eq_bool_prop_intro; split; intros.
-    - apply Bool.Is_true_eq_true in H0.
-      apply Bool.Is_true_eq_left.
-      apply Bool.orb_true_iff.
-      apply disj_true in H0.
-      handle_lists.
-      apply Bool.andb_true_iff in H0; destruct H0.
-      apply Bool.orb_true_iff in H0; destruct H0.
-      + left; apply disj_true.
-        handle_lists; eexists; intuition.
-      + right; apply disj_true.
-        handle_lists; eexists; intuition.
-    - apply Bool.Is_true_eq_true in H0.
-      apply Bool.orb_true_iff in H0.
-      apply Bool.Is_true_eq_left.
-      apply disj_true.
-      handle_lists.
-      destruct H0.
-      + apply disj_true in H0.
-        handle_lists; eexists; intuition.
-      + apply disj_true in H0.
-        handle_lists; eexists; intuition.
+    propify; intuition; handle_lists; propify; intuition; firstorder.
   Qed.
 
   Lemma matrix_product_distribute_left
@@ -1001,27 +975,7 @@ Section FiniteRelationalModels.
   Proof.
     extensionality x; extensionality x'.
     unfold matrix_product_bool, vector_inner_product_bool, matrix_plus.
-    apply Bool.eq_bool_prop_intro; split; intros.
-    - apply Bool.Is_true_eq_true in H0.
-      apply Bool.Is_true_eq_left.
-      apply Bool.orb_true_iff.
-      apply disj_true in H0.
-      handle_lists.
-      apply Bool.andb_true_iff in H0; destruct H0.
-      apply Bool.orb_true_iff in H2; destruct H2.
-      + left; apply disj_true.
-        handle_lists; eexists; intuition.
-      + right; apply disj_true.
-        handle_lists; eexists; intuition.
-    - apply Bool.Is_true_eq_true in H0.
-      apply Bool.orb_true_iff in H0.
-      apply Bool.Is_true_eq_left.
-      apply disj_true.
-      destruct H0.
-      + apply disj_true in H0.
-        repeat handle_lists; eexists; intuition.
-      + apply disj_true in H0.
-        repeat handle_lists; eexists; intuition.
+    propify; intuition; handle_lists; propify; intuition; firstorder.
   Qed.
 
   Lemma matrix_power_series_assoc
@@ -1203,14 +1157,13 @@ Section FiniteRelationalModels.
       rewrite finite_eqb_eq in H1.
       destruct H1.
       + subst.
-        apply Bool.orb_true_iff; left.
+        propify; intuition left.
         now apply finite_eqb_eq.
-      + apply Bool.orb_true_iff; right.
+      + propify; intuition; right.
         unfold matrix_product_bool in *.
         unfold vector_inner_product_bool in *.
-        apply disj_true.
-        apply disj_true in H1.
-        repeat handle_lists; eexists; intuition.
+        propify; handle_lists.
+        eexists; intuition.
   Qed.
   Next Obligation.
     apply matrix_plus_partial_order_rel.
@@ -1356,8 +1309,7 @@ Section RelationalVsFiniteRelational.
     unfold kleene_finite_relational_to_relational in H.
     apply function_instantiation with (x := x) in H.
     apply function_instantiation with (x := x') in H.
-    apply Bool.eq_true_iff_eq.
-    now rewrite H.
+    propify; now rewrite H.
   Qed.
 
   Lemma kleene_finite_relational_to_relational_plus
@@ -1378,7 +1330,7 @@ Section RelationalVsFiniteRelational.
     unfold kleene_finite_relational_to_relational.
     apply propositional_extensionality.
     unfold matrix_plus.
-    now rewrite Bool.orb_true_iff.
+    propify; intuition.
   Qed.
 
   Lemma kleene_finite_relational_to_relational_multiply
@@ -1420,14 +1372,13 @@ Section RelationalVsFiniteRelational.
     - induction H0.
       + rewrite <- mono_fixpoint_fixpoint.
         * unfold matrix_iterate, matrix_plus.
-          rewrite Bool.orb_true_iff; left.
+          propify; intuition; left.
           now rewrite finite_eqb_eq.
         * apply matrix_iterate_monotone.
       + rewrite <- mono_fixpoint_fixpoint.
         * unfold matrix_iterate, matrix_plus.
-          rewrite Bool.orb_true_iff; right.
-          apply matrix_product_characterise; eexists.
-          intuition eauto.
+          propify; handle_lists; intuition; right.
+          eexists; intuition.
         * apply matrix_iterate_monotone.
     - unfold mono_fixpoint in H0.
       revert x x' H0;
@@ -1439,8 +1390,7 @@ Section RelationalVsFiniteRelational.
       + simpl in H0.
         unfold matrix_iterate in H0 at 1.
         unfold matrix_plus in H0.
-        rewrite Bool.orb_true_iff in H0.
-        destruct H0.
+        propify; destruct H0.
         * rewrite finite_eqb_eq in H0; subst.
           apply KleeneRelationalStarBase.
         * rewrite matrix_product_characterise in H0.
@@ -1677,7 +1627,7 @@ Section FiniteEmbedding.
       now apply substring_single.
     - autorewrite with kleene_interp.
       simpl; unfold matrix_plus.
-      apply Bool.orb_true_iff.
+      propify; intuition.
       dependent destruction H1.
       + left; eapply IHt1; eauto.
       + right; eapply IHt2; eauto.
@@ -1694,17 +1644,18 @@ Section FiniteEmbedding.
         rewrite <- mono_fixpoint_fixpoint
           by apply matrix_iterate_monotone.
         unfold matrix_iterate at 1, matrix_plus.
-        apply Bool.orb_true_iff.
-        left; now apply finite_eqb_eq, substring_nil.
+        propify; intuition; left.
+        now apply finite_eqb_eq, substring_nil.
       + unfold matrix_star.
         rewrite <- mono_fixpoint_fixpoint
           by apply matrix_iterate_monotone.
         unfold matrix_iterate at 1, matrix_plus.
-        apply Bool.orb_true_iff.
+        propify; intuition.
         apply substring_app in H0.
         destruct H0 as [p2 [? ?]]; right.
-        apply matrix_product_characterise.
+        handle_lists.
         exists p2; intuition.
+        apply finite_cover.
   Qed.
 
   Lemma substring_nil'
@@ -1823,13 +1774,12 @@ Section FiniteEmbedding.
       erewrite substring_single'; eauto.
       intuition constructor.
     - unfold matrix_plus in H0.
-      apply Bool.orb_true_iff in H0.
-      destruct H0.
-      + apply IHt1 in H0.
-        destruct H0 as [x [? ?]].
+      propify; intuition.
+      + apply IHt1 in H1.
+        destruct H1 as [x [? ?]].
         exists x; intuition now constructor.
-      + apply IHt2 in H0.
-        destruct H0 as [x [? ?]].
+      + apply IHt2 in H1.
+        destruct H1 as [x [? ?]].
         exists x; intuition now constructor.
     - unfold kleene_multiply in H0; simpl in H0.
       apply matrix_product_characterise in H0.
@@ -1847,14 +1797,13 @@ Section FiniteEmbedding.
       end; intro; induction n; intros; simpl in H0.
       + now unfold matrix_empty in H0.
       + unfold matrix_iterate at 1, matrix_plus in H0.
-        apply Bool.orb_true_iff in H0.
-        destruct H0; intuition.
-        * apply finite_eqb_eq in H0; subst.
+        propify; intuition.
+        * apply finite_eqb_eq in H1; subst.
           exists nil; intuition.
           -- apply substring_nil'.
           -- constructor.
-        * apply matrix_product_characterise in H0.
-          destruct H0 as [p2 [? ?]].
+        * apply matrix_product_characterise in H1.
+          destruct H1 as [p2 [? ?]].
           apply IHt in H0; destruct H0 as [x0 [? ?]].
           apply IHn in H1; destruct H1 as [x1 [? ?]].
           exists (x0 ++ x1); intuition.
@@ -1914,8 +1863,7 @@ Section FiniteEmbedding.
   .
   Proof.
     intros; repeat rewrite kleene_finite_equiv.
-    apply Bool.eq_iff_eq_true.
-    now rewrite H0.
+    propify; now rewrite H0.
   Qed.
 End FiniteEmbedding.
 

@@ -418,21 +418,16 @@ Section FiniteSubset.
     - split; intros; auto.
       extensionality p.
       dependent destruction p.
-    - rewrite Bool.andb_true_iff.
-      split; intros.
-      + destruct H.
+    - propify; intuition.
+      + destruct H2.
         extensionality p.
-        dependent destruction p.
-        * now apply Bool.eqb_prop.
-        * replace (f (PThere p)) with ((f ∘ PThere) p) by reflexivity.
-          replace (g (PThere p)) with ((g ∘ PThere) p) by reflexivity.
-          apply IHn in H0.
-          now rewrite H0.
-      + split; intros.
-        * rewrite H.
-          apply Bool.eqb_reflx.
-        * apply IHn.
-          now rewrite H.
+        dependent destruction p; intuition.
+        replace (f (PThere p)) with ((f ∘ PThere) p) by reflexivity.
+        replace (g (PThere p)) with ((g ∘ PThere) p) by reflexivity.
+        apply IHn in H; congruence.
+      + congruence.
+      + apply IHn.
+        congruence.
   Qed.
 
   Global Program Instance finite_subsets_finite
@@ -451,10 +446,10 @@ Section FiniteSubset.
       rewrite <- list_lookup_index with (x := x).
       eapply function_instantiation in Heqb; eauto.
     - right.
-      rewrite <- Bool.not_true_iff_false in Heqb.
       contradict Heqb.
-      apply position_subsets_eqb_correct.
-      now subst.
+      apply Bool.not_false_iff_true.
+      rewrite position_subsets_eqb_correct.
+      congruence.
   Defined.
   Next Obligation.
     unfold finite_subsets; handle_lists.

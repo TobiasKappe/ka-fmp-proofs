@@ -6,6 +6,7 @@ Require Import Coq.btauto.Btauto.
 
 Require Import KA.Finite.
 Require Import KA.Scope.
+Require Import KA.Utilities.
 Local Open Scope ka_scope.
 
 Section TermSyntax.
@@ -683,16 +684,12 @@ Section TermEmpty.
     - reflexivity.
     - discriminate.
     - discriminate.
-    - rewrite Bool.andb_true_iff in H0.
-      destruct H0.
-      rewrite IHt1, IHt2; auto.
+    - propify; intuition.
+      rewrite H0, H3.
       apply term_lequiv_refl.
-    - rewrite Bool.orb_true_iff in H0.
-      destruct H0.
-      + rewrite IHt1 by auto.
-        now rewrite ETimesZeroRight.
-      + rewrite IHt2 by auto.
-        now rewrite ETimesZeroLeft.
+    - propify; intuition; rewrite H0.
+      + now rewrite ETimesZeroRight.
+      + now rewrite ETimesZeroLeft.
     - discriminate.
   Qed.
 

@@ -341,13 +341,10 @@ Section AntimirovNullable.
     end.
     split; intros.
     - dependent destruction H.
-      apply andb_true_intro; split.
-      + now apply IHt1.
-      + apply disj_true.
-        handle_lists; eexists; intuition.
-        now apply initial_list.
-    - apply andb_prop in H; destruct H.
-      apply disj_true in H0.
+      propify; intuition.
+      handle_lists; eexists; intuition.
+      now apply initial_list.
+    - propify; intuition.
       handle_lists.
       eapply NullableTimesPre; intuition.
       now apply initial_list.
@@ -499,33 +496,27 @@ Section AntimirovDerive.
       + discriminate.
     - split; intros.
       + dependent destruction H0.
-        apply andb_true_intro; split.
+        propify; intuition.
         * now apply nullable_dec.
-        * apply disj_true.
-          handle_lists; eexists; intuition.
+        * handle_lists; eexists; intuition.
           now apply initial_list.
-      + apply andb_prop in H0; destruct H0.
-        apply disj_true in H1.
+      + propify; intuition.
         handle_lists.
         eapply DeriveTimesJump; intuition.
         * now apply nullable_dec.
         * apply initial_list, H2.
     - split; intros.
-      + apply Bool.orb_true_intro.
+      + propify; intuition.
         dependent destruction H0.
         * left; now apply IHt.
-        * right; apply andb_true_intro; split.
+        * right; intuition.
           -- now apply nullable_dec.
-          -- apply disj_true.
-             handle_lists; eexists; intuition.
+          -- handle_lists; eexists; intuition.
              now apply initial_list.
-      + apply Bool.orb_true_elim in H0.
-        destruct H0.
+      + propify; intuition.
         * apply DeriveStarInnerStep.
           now apply IHt.
-        * apply andb_prop in e; destruct e.
-          apply disj_true in H1.
-          handle_lists.
+        * handle_lists.
           eapply DeriveStarInnerJump; intuition.
           -- now apply nullable_dec.
           -- apply initial_list, H2.

@@ -55,20 +55,21 @@ Section StructurePowerset.
   .
   Proof.
     unfold powerset_multiplication.
-    rewrite disj_true; intuition.
-    - handle_lists; destruct x0.
-      repeat rewrite Bool.andb_true_iff in H0; intuition.
+    propify; handle_lists; intuition.
+    - destruct H0 as [[? ?] [? ?]].
+      propify; intuition.
       apply finite_eqb_eq in H0.
       firstorder.
-    - destruct H0 as [x1' [x2' [? [? ?]]]].
-      handle_lists; exists (x1', x2'); simpl.
-      repeat rewrite Bool.andb_true_iff; intuition.
+    - destruct H0 as [x1' [x2' ?]]; intuition.
+      exists (x1', x2'); propify; intuition.
       + now apply finite_eqb_eq.
       + replace (list_prod finite_enum finite_enum)
           with (finite_enum (X := (prod X X)))
           by reflexivity.
         apply finite_cover.
   Qed.
+
+  Opaque powerset_multiplication.
 
   Program Definition monoid_powerset
     {X: Type}
@@ -81,8 +82,7 @@ Section StructurePowerset.
     monoid_unit x := finite_eqb x (monoid_unit M);
   |}.
   Next Obligation.
-    extensionality x.
-    apply ZMicromega.eq_true_iff_eq.
+    extensionality x; propify.
     repeat rewrite powerset_multiplication_characterise.
     split; intros.
     - destruct H0 as [x' [x3' [? [? ?]]]].
@@ -100,27 +100,21 @@ Section StructurePowerset.
       now exists x1', x2'.
   Qed.
   Next Obligation.
-    extensionality x'.
-    apply ZMicromega.eq_true_iff_eq.
-    rewrite powerset_multiplication_characterise.
-    split; intros.
+    extensionality x'; propify.
+    rewrite powerset_multiplication_characterise; intuition.
     - destruct H0 as [x1' [x2' [? [? ?]]]].
       apply finite_eqb_eq in H1; subst.
       now rewrite monoid_unit_left.
-    - exists x', (monoid_unit M).
-      intuition.
+    - exists x', (monoid_unit M); intuition.
       now apply finite_eqb_eq.
   Qed.
   Next Obligation.
-    extensionality x'.
-    apply ZMicromega.eq_true_iff_eq.
-    rewrite powerset_multiplication_characterise.
-    split; intros.
+    extensionality x'; propify.
+    rewrite powerset_multiplication_characterise; intuition.
     - destruct H0 as [x1' [x2' [? [? ?]]]].
       apply finite_eqb_eq in H0; subst.
       now rewrite monoid_unit_right.
-    - exists (monoid_unit M), x'.
-      intuition.
+    - exists (monoid_unit M), x'; intuition.
       now apply finite_eqb_eq.
   Qed.
 
@@ -133,9 +127,7 @@ Section StructurePowerset.
     partial_order_zero x := false;
   |}.
   Next Obligation.
-    extensionality x.
-    apply ZMicromega.eq_true_iff_eq.
-    intuition.
+    extensionality x; propify; intuition.
   Qed.
 
   Definition powerset_union
@@ -177,7 +169,7 @@ Section StructurePowerset.
   .
   Proof.
     unfold powerset_union.
-    now rewrite Bool.orb_true_iff.
+    propify; intuition.
   Qed.
 
   Lemma powerset_union_order
@@ -191,10 +183,7 @@ Section StructurePowerset.
     unfold partial_order_rel, powerset_union.
     simpl; split; intros.
     - now rewrite <- H, H0.
-    - extensionality x.
-      apply ZMicromega.eq_true_iff_eq.
-      rewrite Bool.orb_true_iff.
-      firstorder.
+    - extensionality x; propify; intuition.
   Qed.
 
   Definition kleene_star_step_offset
@@ -219,13 +208,9 @@ Section StructurePowerset.
                    (powerset_multiplication M xs2 xs3)
   .
   Proof.
-    extensionality x'.
-    unfold powerset_union.
-    apply ZMicromega.eq_true_iff_eq.
-    rewrite Bool.orb_true_iff.
-    repeat rewrite powerset_multiplication_characterise.
-    setoid_rewrite Bool.orb_true_iff.
-    firstorder.
+    extensionality x'; unfold powerset_union; propify.
+    repeat rewrite powerset_multiplication_characterise; propify.
+    firstorder; propify.
   Qed.
 
   Lemma powerset_union_multiply_distribute_left
@@ -239,13 +224,10 @@ Section StructurePowerset.
       (powerset_multiplication M xs1 xs3)
   .
   Proof.
-    extensionality x'.
-    unfold powerset_union.
-    apply ZMicromega.eq_true_iff_eq.
-    rewrite Bool.orb_true_iff.
+    extensionality x'; propify.
+    unfold powerset_union; propify.
     repeat rewrite powerset_multiplication_characterise.
-    setoid_rewrite Bool.orb_true_iff.
-    firstorder.
+    propify; firstorder.
   Qed.
 
   Lemma powerset_union_commute
@@ -274,11 +256,10 @@ Section StructurePowerset.
     unfold mono_fixpoint.
     generalize (@length (X -> bool) finite_enum); intros.
     induction n; simpl in *.
-    - extensionality x.
-      unfold powerset_multiplication.
-      symmetry; apply disj_false; intros.
-      handle_lists; destruct x1.
-      subst; btauto.
+    - extensionality x; symmetry.
+      propify; intuition.
+      apply powerset_multiplication_characterise in H1.
+      destruct H1 as [x1' [x2' ?]]; intuition.
     - rewrite IHn.
       unfold kleene_star_step at 2, kleene_star_step_offset at 1.
       rewrite powerset_union_multiply_distribute_right.
@@ -315,7 +296,8 @@ Section StructurePowerset.
                       (powerset_union xs1' xs2')
   .
   Proof.
-    simpl; unfold powerset_union; setoid_rewrite Bool.orb_true_iff; firstorder.
+    simpl; unfold powerset_union.
+    propify; firstorder.
   Qed.
 
   Lemma kleene_star_step_mono
@@ -383,18 +365,14 @@ Section StructurePowerset.
     apply powerset_union_commute.
   Qed.
   Next Obligation.
-    extensionality x'.
-    unfold powerset_multiplication.
-    apply disj_false; intros.
-    handle_lists; destruct x1.
-    subst; btauto.
+    extensionality x'; propify; intuition.
+    apply powerset_multiplication_characterise in H0.
+    destruct H0 as [? [? ?]]; intuition.
   Qed.
   Next Obligation.
-    extensionality x'.
-    unfold powerset_multiplication.
-    apply disj_false; intros.
-    handle_lists; destruct x1.
-    subst; btauto.
+    extensionality x'; propify; intuition.
+    apply powerset_multiplication_characterise in H0.
+    destruct H0 as [? [? ?]]; intuition.
   Qed.
   Next Obligation.
     apply powerset_union_multiply_distribute_left.
@@ -619,10 +597,7 @@ Section StructureNormalForm.
     destruct H1 as [t' [? ?]].
     apply automaton_accepts_transition_matrix in H2.
     unfold vector_inner_product_bool in H2.
-    apply disj_true in H2.
-    handle_lists.
-    apply andb_prop in H2.
-    destruct H2 as [? ?].
+    propify; handle_lists; propify; intuition.
     eapply term_lequiv_trans.
     - eapply automaton_relation_solution_bound; eauto.
       rewrite <- H0, <- automaton_transition_matrix_monoid_interp; eauto.
@@ -714,11 +689,11 @@ Section StructureNormalForm.
         autorewrite with kleene_interp.
         unfold kleene_multiply; simpl.
         unfold powerset_multiplication.
-        apply disj_true.
+        propify; intuition.
         handle_lists; exists (x0, x).
-        repeat rewrite andb_true_intro; intuition.
-        * apply in_prod; apply finite_cover.
+        propify; intuition.
         * now apply finite_eqb_eq.
+        * apply in_prod; apply finite_cover.
     - rewrite <- ETimesUnitRight with (t := t' *) at 1.
       apply EFixLeft.
       apply term_lequiv_split.
@@ -739,14 +714,11 @@ Section StructureNormalForm.
             by (apply EStarLeft).
           autorewrite with kleene_interp; simpl.
           unfold powerset_union.
-          apply Bool.orb_true_intro; left.
-          unfold kleene_multiply; simpl.
-          unfold powerset_multiplication.
-          apply disj_true.
-          handle_lists; exists (x0, x); simpl.
-          repeat rewrite andb_true_intro; intuition.
-          -- apply in_prod; intuition.
+          propify; intuition; left.
+          handle_lists; exists (x0, x).
+          propify; intuition.
           -- now apply finite_eqb_eq.
+          -- apply in_prod; intuition.
       + eapply term_lequiv_trans; swap 1 2.
         * apply sum_lequiv_member.
           handle_lists; eexists; intuition.
@@ -756,7 +728,7 @@ Section StructureNormalForm.
                by apply EStarLeft.
              autorewrite with kleene_interp; simpl.
              unfold powerset_union.
-             repeat rewrite Bool.orb_true_intro; intuition; right.
+             propify; intuition; right.
              unfold kleene_unit, monoid_unit; simpl.
              apply finite_eqb_eq; reflexivity.
         * unfold automaton_relation_solution.

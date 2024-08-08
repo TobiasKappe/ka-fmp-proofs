@@ -513,13 +513,10 @@ Section VectorBool.
   Proof.
     unfold matrix_product_bool.
     unfold vector_inner_product_bool.
-    rewrite disj_true.
-    handle_lists.
-    setoid_rewrite Bool.andb_true_iff.
-    split; intros.
-    - destruct H0 as [q3 [? ?]].
+    propify; handle_lists; intuition.
+    - destruct H0 as [q3 [? ?]]; propify.
       now exists q3.
-    - destruct H0 as [q3 [? ?]].
+    - destruct H0 as [q3 [? ?]]; propify.
       exists q3; intuition.
   Qed.
 

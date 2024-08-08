@@ -293,8 +293,7 @@ Section AutomatonTransformationMonoid.
         apply finite_eqb_eq in H3; subst.
         unfold matrix_product_bool in H6.
         unfold vector_inner_product_bool in H6.
-        apply disj_true in H6.
-        handle_lists.
+        propify; handle_lists.
         apply andb_prop in H3; destruct H3.
         eapply term_lequiv_trans; swap 1 2.
         * apply sum_lequiv_member.
@@ -333,33 +332,32 @@ Section AutomatonTransformationMonoid.
   .
   Proof.
     unfold vector_inner_product_bool.
-    rewrite disj_true.
-    handle_lists.
-    setoid_rewrite Bool.andb_true_iff.
+    propify; handle_lists; propify.
     revert q; induction w; intros.
-    - firstorder.
+    - intuition.
       + inversion H1; subst.
         exists q; intuition.
         autorewrite with automaton_transition_matrix.
         now apply finite_eqb_eq.
       + apply AcceptsEmpty.
         autorewrite with automaton_transition_matrix in H1.
-        apply finite_eqb_eq in H1.
+        destruct H1; intuition.
+        apply finite_eqb_eq in H6.
         congruence.
-    - split; intros.
+    - intuition.
       + inversion H1; subst.
-        apply IHw in H6.
+        apply IHw in H8; intuition.
         destruct H6 as [qf [[? ?] _]].
         exists qf; intuition.
         autorewrite with automaton_transition_matrix.
         apply matrix_product_characterise.
         now exists q'.
       + destruct H1 as [qf [[? ?] _]].
-        autorewrite with automaton_transition_matrix in H1.
-        apply matrix_product_characterise in H1.
-        destruct H1 as [q' [? ?]].
+        autorewrite with automaton_transition_matrix in H4; intuition.
+        apply matrix_product_characterise in H4.
+        destruct H4 as [q' [? ?]].
         apply AcceptsStep with (q' := q'); auto.
-        apply IHw.
-        now exists qf; intuition.
+        apply IHw; intuition.
+        exists qf; intuition.
   Qed.
 End AutomatonTransformationMonoid.

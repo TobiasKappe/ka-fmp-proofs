@@ -47,6 +47,27 @@ Ltac handle_lists :=
     apply map_eq_nil in H
   end.
 
+Ltac propify :=
+  try setoid_rewrite eq_iff_eq_true;
+  repeat (
+    try setoid_rewrite orb_true_iff;
+    try setoid_rewrite orb_false_iff;
+    try setoid_rewrite andb_true_iff;
+    try setoid_rewrite andb_false_iff;
+    try setoid_rewrite eqb_true_iff;
+    try setoid_rewrite eqb_false_iff;
+    try setoid_rewrite negb_false_iff;
+    try setoid_rewrite disj_true;
+    try setoid_rewrite disj_false;
+    try setoid_rewrite conj_true;
+    rewrite ?orb_true_iff, ?orb_false_iff,
+            ?andb_true_iff, ?andb_false_iff,
+            ?eqb_true_iff, ?eqb_false_iff,
+            ?negb_false_iff,
+            ?disj_true, ?disj_false, ?conj_true
+            in *
+  ).
+
 Lemma function_instantiation {X Y: Type} (f g: X -> Y) (x: X):
   f = g -> f x = g x
 .
