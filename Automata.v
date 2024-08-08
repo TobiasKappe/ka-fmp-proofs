@@ -1,14 +1,15 @@
-Require Import Coq.Program.Basics.
 Require Import Coq.Lists.List.
+Require Import Coq.Program.Basics.
 Require Import Coq.Program.Equality.
-Local Open Scope program_scope.
-Local Open Scope bool_scope.
 
-Require Import KA.Finite.
 Require Import KA.Booleans.
+Require Import KA.Finite.
 Require Import KA.Terms.
 Require Import KA.Vectors.
+
+Local Open Scope bool_scope.
 Local Open Scope ka_scope.
+Local Open Scope program_scope.
 
 Section Automaton.
   Variable (A: Type).

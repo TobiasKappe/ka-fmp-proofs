@@ -4,9 +4,10 @@ Require Import Coq.Logic.PropExtensionality.
 Require Import Coq.Program.Basics.
 Require Import Coq.Program.Equality.
 Require Import Coq.micromega.Lia.
-Local Open Scope program_scope.
 
 Require Import KA.Utilities.
+
+Local Open Scope program_scope.
 
 Section FiniteDefinition.
   Class Finite (X: Type) := {

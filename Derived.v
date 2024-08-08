@@ -1,13 +1,14 @@
 Require Import Coq.Lists.List.
-Require Import Coq.Program.Equality.
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.PropExtensionality.
+Require Import Coq.Program.Equality.
 
-Require Import KA.Terms.
 Require Import KA.Finite.
 Require Import KA.Main.
 Require Import KA.Scope.
+Require Import KA.Terms.
 Require Import KA.Utilities.
+
 Local Open Scope ka_scope.
 
 Section DerivedBase.

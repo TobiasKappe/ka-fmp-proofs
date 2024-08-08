@@ -1,18 +1,19 @@
-Require Import Coq.Program.Equality.
 Require Import Coq.Lists.List.
 Require Import Coq.Program.Basics.
-Local Open Scope program_scope.
+Require Import Coq.Program.Equality.
 
-Require Import KA.Utilities.
-Require Import KA.Finite.
-Require Import KA.Booleans.
-Require Import KA.Terms.
-Require Import KA.Vectors.
 Require Import KA.Automata.
+Require Import KA.Booleans.
+Require Import KA.Finite.
 Require Import KA.Scope.
 Require Import KA.Solve.
+Require Import KA.Terms.
 Require Import KA.Utilities.
+Require Import KA.Utilities.
+Require Import KA.Vectors.
+
 Local Open Scope ka_scope.
+Local Open Scope program_scope.
 
 Section AntimirovTypes.
   Variable (A: Type).

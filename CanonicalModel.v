@@ -1,22 +1,22 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Logic.FunctionalExtensionality.
-Require Import Coq.btauto.Btauto.
 Require Import Coq.Program.Equality.
+Require Import Coq.btauto.Btauto.
 
 Require Import KA.Antimirov.
 Require Import KA.Automata.
 Require Import KA.Booleans.
 Require Import KA.Finite.
-Require Import KA.Scope.
-Require Import KA.Terms.
-Require Import KA.Vectors.
-Require Import KA.Transformation.
-Require Import KA.Solve.
 Require Import KA.ModelTheory.
+Require Import KA.Scope.
+Require Import KA.Solve.
+Require Import KA.Terms.
+Require Import KA.Transformation.
 Require Import KA.Utilities.
+Require Import KA.Vectors.
 
-Local Open Scope ka_scope.
 Local Open Scope bool_scope.
+Local Open Scope ka_scope.
 
 Section StructurePowerset.
   Context {A: Type}.

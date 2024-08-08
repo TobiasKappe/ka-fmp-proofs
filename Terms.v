@@ -1,12 +1,13 @@
 From Equations Require Import Equations.
+Require Import Coq.Lists.List.
 Require Import Coq.Program.Equality.
 Require Import Coq.Setoids.Setoid.
-Require Import Coq.Lists.List.
 Require Import Coq.btauto.Btauto.
 
 Require Import KA.Finite.
 Require Import KA.Scope.
 Require Import KA.Utilities.
+
 Local Open Scope ka_scope.
 
 Section TermSyntax.

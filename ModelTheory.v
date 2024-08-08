@@ -1,17 +1,17 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Logic.PropExtensionality.
-Require Import Coq.micromega.Lia.
-Require Import Coq.btauto.Btauto.
 Require Import Coq.Program.Basics.
 Require Import Coq.Program.Equality.
+Require Import Coq.btauto.Btauto.
+Require Import Coq.micromega.Lia.
 
 Require Import KA.Booleans.
 Require Import KA.Finite.
 Require Import KA.Scope.
 Require Import KA.Terms.
-Require Import KA.Vectors.
 Require Import KA.Utilities.
+Require Import KA.Vectors.
 
 Local Open Scope ka_scope.
 Local Open Scope program_scope.

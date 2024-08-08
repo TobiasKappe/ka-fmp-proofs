@@ -1,8 +1,8 @@
-Require Import Coq.Program.Equality.
-Require Import Coq.Lists.List.
-Require Import Coq.micromega.Lia.
-Require Import Coq.Program.Basics.
 Require Import Coq.Bool.Bool.
+Require Import Coq.Lists.List.
+Require Import Coq.Program.Basics.
+Require Import Coq.Program.Equality.
+Require Import Coq.micromega.Lia.
 
 Require Import KA.Booleans.
 
