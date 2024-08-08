@@ -185,53 +185,6 @@ Section FiniteIsomorphism.
   Qed.
 End FiniteIsomorphism.
 
-Module FiniteBijection.
-  Record bijection {X Y: Type} := {
-    bijection_mapping :> X -> Y;
-    bijection_inverse: Y -> X;
-    bijection_injective:
-      forall x1 x2,
-        bijection_mapping x1 = bijection_mapping x2 ->
-        x1 = x2;
-    bijection_surjective:
-      forall y, bijection_mapping (bijection_inverse y) = y
-  }.
-  Arguments bijection _ _ : clear implicits.
-
-  Local Program Instance bijection_finite
-    (X Y: Type)
-    `{Finite X}
-    (f: bijection X Y)
-  :
-    Finite Y
-  := {|
-    finite_enum := map f finite_enum
-  |}.
-  Next Obligation.
-    destruct (finite_dec (bijection_inverse f x1) (bijection_inverse f x2)).
-    - apply (f_equal (bijection_mapping f)) in e.
-      repeat rewrite bijection_surjective in e.
-      now left.
-    - right; contradict n.
-      now subst.
-  Qed.
-  Next Obligation.
-    pose proof (bijection_surjective f).
-    rewrite <- (H0 x).
-    handle_lists; eexists; intuition.
-  Qed.
-  Next Obligation.
-    eapply NoDup_map_inv.
-    handle_lists.
-    erewrite map_ext.
-    - rewrite map_id.
-      apply finite_nodup.
-    - intros; simpl.
-      apply bijection_injective with (b := f).
-      now rewrite bijection_surjective.
-  Qed.
-End FiniteBijection.
-
 Section FiniteUtilities.
   (* From Leapfrog *)
   Lemma NoDup_app :
@@ -270,48 +223,6 @@ Section FiniteUtilities.
       now inversion H0.
     - inversion H0.
       eauto.
-  Qed.
-
-  Lemma filter_singleton
-    {X: Type}
-    `{Finite X}
-    (f: X -> bool)
-    (l: list X)
-    (x: X)
-  :
-    (forall x', f x' = true <-> x = x') ->
-    filter f l = repeat x (count_occ finite_dec l x)
-  .
-  Proof.
-    intros.
-    induction l.
-    - reflexivity.
-    - destruct (finite_dec a x).
-      + subst; simpl.
-        destruct (finite_dec x x); intuition.
-        destruct (f x) eqn:?.
-        * simpl; now f_equal.
-        * specialize (H0 x).
-          intuition congruence.
-      + simpl.
-        destruct (f a) eqn:?.
-        * apply H0 in Heqb; congruence.
-        * destruct (finite_dec a x); intuition.
-  Qed.
-
-  Lemma finite_count_occ
-    {X: Type}
-    `{Finite X}
-    (x: X)
-  :
-    count_occ finite_dec finite_enum x = 1%nat
-  .
-  Proof.
-    apply PeanoNat.Nat.le_antisymm.
-    - apply NoDup_count_occ.
-      apply finite_nodup.
-    - apply count_occ_In.
-      apply finite_cover.
   Qed.
 End FiniteUtilities.
 
@@ -469,62 +380,6 @@ Section FiniteSubset.
     - apply position_subsets_nodup.
   Qed.
 End FiniteSubset.
-
-Section FiniteCoproduct.
-  Global Program Instance finite_coproduct
-    (X Y: Type)
-    `{Finite X}
-    `{Finite Y}
-  :
-    Finite (X + Y)
-  := {|
-    finite_enum := map inl finite_enum ++ map inr finite_enum
-  |}.
-  Next Obligation.
-    destruct x1, x2.
-    - destruct (finite_dec x x0).
-      + left; congruence.
-      + right; congruence.
-    - now right.
-    - now right.
-    - destruct (finite_dec y y0).
-      + left; congruence.
-      + right; congruence.
-  Qed.
-  Next Obligation.
-    handle_lists.
-    destruct x; [left|right].
-    all: handle_lists; eexists; intuition.
-  Qed.
-  Next Obligation.
-    apply NoDup_app.
-    - apply NoDup_map.
-      + intros; now inversion H1.
-      + apply finite_nodup.
-    - apply NoDup_map.
-      + intros; now inversion H1.
-      + apply finite_nodup.
-    - intros; intro.
-      repeat handle_lists; congruence.
-    - intros; intro.
-      repeat handle_lists; congruence.
-  Qed.
-End FiniteCoproduct.
-
-Section FiniteUnit.
-  Global Program Instance finite_unit : Finite unit := {|
-    finite_enum := tt :: nil;
-  |}.
-  Next Obligation.
-    destruct x1, x2; now left.
-  Qed.
-  Next Obligation.
-    destruct x; now left.
-  Qed.
-  Next Obligation.
-    constructor; intuition constructor.
-  Qed.
-End FiniteUnit.
 
 Section FiniteProduct.
   (* From Leapfrog *)
